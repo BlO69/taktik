@@ -530,12 +530,12 @@ export default async function initCreateGame(supabaseClient) {
   try {
     // Si pas de gameId, ne pas rediriger aveuglément : alerter / logger et sortir.
     if (!gameId) {
-  console.warn('joinGameOrRedirect: gameId manquant, fallback invitation');
-  // fallback sûr : on laisse game.js résoudre
-  window.location.href = 'game.html?from_invite=1';
-  return;
-}
-    
+      console.warn('joinGameOrRedirect: gameId manquant — annulation de la redirection.');
+      // Remplace alert par votre UI/toaster si vous en avez un.
+      alert("Impossible de récupérer l'identifiant de la partie. Réessayez dans quelques instants.");
+      return;
+    }
+
     const redirectToGame = (id) => {
       const url = `game.html?game_id=${encodeURIComponent(id)}`;
       window.location.href = url;
@@ -586,7 +586,7 @@ export default async function initCreateGame(supabaseClient) {
     if (gameId) {
       window.location.href = `game.html?game_id=${encodeURIComponent(gameId)}`;
     } else {
-      window.location.href = 'game.html?from_invite=1';
+      window.location.href = 'game.html';
     }
   }
 }
@@ -763,7 +763,7 @@ export default async function initCreateGame(supabaseClient) {
               await joinGameOrRedirect(targetGameId);
             } else {
               // Redirect to generic game.html when no ID found (per requested behavior)
-              window.location.href = `game.html?invitation_id=${encodeURIComponent(inv.id)}`;
+              window.location.href = 'game.html';
             }
           } else {
             info('Invitation terminée : ' + fresh.status);
@@ -804,7 +804,7 @@ export default async function initCreateGame(supabaseClient) {
             await joinGameOrRedirect(finalGameId);
           } else {
             // Redirect to generic game.html when no ID found (per requested behavior)
-            window.location.href = `game.html?invitation_id=${encodeURIComponent(finalRec.id)}`;
+            window.location.href = 'game.html';
           }
         } catch (e) {
           console.error('handleOutgoingAccepted error', e);
@@ -873,7 +873,7 @@ export default async function initCreateGame(supabaseClient) {
               if (finalGameId) {
                 await joinGameOrRedirect(finalGameId);
               } else {
-                window.location.href = `game.html?invitation_id=${encodeURIComponent(finalRec.id)}`;
+                window.location.href = 'game.html';
               }
             } catch (e) {
               console.error('poller finalRec handler error', e);
@@ -902,7 +902,7 @@ export default async function initCreateGame(supabaseClient) {
             if (finalGameId) {
               await joinGameOrRedirect(finalGameId);
             } else {
-              window.location.href = `game.html?invitation_id=${encodeURIComponent(finalRec.id)}`;
+              window.location.href = 'game.html';
             }
           } catch (e) {
             console.error('poller finalRec handler error (catch)', e);
@@ -1006,7 +1006,7 @@ export default async function initCreateGame(supabaseClient) {
                 await joinGameOrRedirect(targetGameId);
               } else {
                 // per request: redirect invitee to game.html when accepted even if no ID present
-                window.location.href = `game.html?invitation_id=${encodeURIComponent(rec.id)}`;
+                window.location.href = 'game.html';
               }
             }
           } else if (decision === 'declined') {
