@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Connexion / Inscription — taktik</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      background: radial-gradient(circle at 15% 25%, rgba(255,105,180,0.08), transparent 45%),
+                  radial-gradient(circle at 85% 75%, rgba(255,105,180,0.06), transparent 50%),
+                  #0b0b0b;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen text-gray-200 flex flex-col">
+
+  <main class="flex-1 flex items-center justify-center px-4 py-10">
+
+    <div class="w-full max-w-lg bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl p-6">
+
+      <!-- Header / Brand -->
+      <div class="flex items-center gap-3 mb-6">
+        <img src="logo.png" alt="taktik logo" class="w-12 h-12 rounded-xl object-contain bg-white/10 p-2">
+        <div>
+          <h1 class="text-xl font-bold text-pink-400">taktik</h1>
+          <p class="text-sm text-gray-400">Connexion ou création de compte</p>
+        </div>
+      </div>
+
+      <!-- Toggle -->
+      <button id="toggleFormBtn"
+        class="mb-4 px-3 py-2 text-sm rounded-lg border border-white/10 hover:border-pink-400 transition">
+        Passer à l'inscription
+      </button>
+
+      <!-- Signup -->
+      <div id="signupForm" class="hidden space-y-3">
+        <h2 class="text-lg font-semibold text-gray-200">Inscription</h2>
+
+        <input id="signupEmail" type="email" placeholder="Email"
+          class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-pink-400 outline-none">
+
+        <input id="signupPass" type="password" placeholder="Mot de passe"
+          class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-pink-400 outline-none">
+
+        <label class="flex items-center gap-2 text-sm text-gray-400">
+          <input type="checkbox" id="stayConnectedSignup">
+          Rester connecté
+        </label>
+
+        <button id="signupBtn"
+          class="w-full py-2 rounded-lg font-semibold bg-pink-500 hover:bg-pink-400 text-black transition">
+          Créer un compte
+        </button>
+      </div>
+
+      <!-- Login -->
+      <div id="loginForm" class="space-y-3">
+        <h2 class="text-lg font-semibold text-gray-200">Connexion</h2>
+
+        <input id="loginEmail" type="email" placeholder="Email"
+          class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-pink-400 outline-none">
+
+        <input id="loginPass" type="password" placeholder="Mot de passe"
+          class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-pink-400 outline-none">
+
+        <label class="flex items-center gap-2 text-sm text-gray-400">
+          <input type="checkbox" id="stayConnectedLogin">
+          Rester connecté
+        </label>
+
+        <button id="loginBtn"
+          class="w-full py-2 rounded-lg font-semibold bg-pink-500 hover:bg-pink-400 text-black transition">
+          Se connecter
+        </button>
+
+        <a href="#" id="forgotPass" class="text-sm text-pink-400 hover:underline">
+          Mot de passe oublié ?
+        </a>
+      </div>
+
+      <!-- Google -->
+      <div class="mt-6 text-center">
+        <p class="text-gray-400 text-sm mb-2">Ou continue avec Google</p>
+
+        <button id="googleBtn"
+          class="w-full py-2 rounded-lg border border-white/15 hover:border-pink-400 transition flex justify-center items-center gap-2">
+          <span>Se connecter avec Google</span>
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+
+  <!-- Toggle login/signup -->
+  <script>
+    const toggleBtn = document.getElementById('toggleFormBtn');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+
+    let loginVisible = true;
+
+    toggleBtn.addEventListener('click', () => {
+      loginVisible = !loginVisible;
+      loginForm.classList.toggle('hidden', !loginVisible);
+      signupForm.classList.toggle('hidden', loginVisible);
+      toggleBtn.textContent = loginVisible
+        ? "Passer à l'inscription"
+        : "Passer à la connexion";
+    });
+  </script>
+
+  <!-- Auth logic -->
+  <script type="module" src="auth.js"></script>
+<!-- Footer -->
+<footer class="text-center text-sm text-gray-400 py-6 border-t border-white/5">
+  © <span id="currentYear"></span> taktik •
+  <a href="cgu.html" class="text-pink-400 hover:underline">CGU</a> •
+  <a href="pol.html" class="text-pink-400 hover:underline">Confidentialité</a>
+</footer>
+
+<script>
+  // Injecte l'année en cours automatiquement
+  (function () {
+    const el = document.getElementById('currentYear');
+    if (el) el.textContent = new Date().getFullYear();
+  })();
+</script>
+
+</body>
+</html>
