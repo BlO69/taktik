@@ -501,6 +501,7 @@ export default async function initGame(supabaseClient) {
         try {
           const { data, error } = await supabase.rpc(rpcName, {
             p_game_id: gameId,
+            p_position: null,
             p_row: row,
             p_col: col,
             p_player: playerChar
