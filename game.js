@@ -3,7 +3,7 @@
 export default async function initGame(supabaseClient) {
   const supabase = supabaseClient ?? window.supabase;
   // DEBUG MODE: true = alerts + extra verbosity (utile sur Android sans console)
-  const dbg = true;
+  const dbg = false;
 
   // global dbgAlert (utilisé aussi par game.html). Si dbg=false, on logge silencieusement.
   window.dbgAlert = function dbgAlert(msg) {
