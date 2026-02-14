@@ -605,5 +605,21 @@ window.livekit = window.livekit || {
   getRoom: () => liveRoom,
   connectRoom: async (roomName, identity, gameId) => connectAndJoin(roomName, identity, gameId)
 };
+// marque le <script> qui a chargé ce module comme "data-loaded" pour que fab.js
+// (ou tout autre code) puisse détecter rapidement que live.js a été exécuté.
+try {
+  const cs = document.currentScript;
+  if (cs && cs.tagName === 'SCRIPT') {
+    cs.setAttribute('data-loaded', '1');
+  } else {
+    // fallback : si currentScript est null (ex. bundler / exec tardive),
+    // on cherche un <script type="module"> qui pointe vers live.js et on le marque.
+    const s = Array.from(document.querySelectorAll('script[type="module"]'))
+      .find(sc => sc.src && sc.src.includes('live.js'));
+    if (s) s.setAttribute('data-loaded', '1');
+  }
+} catch (e) {
+  /* ignore - non critique */
+}
 
 dbgLog('live.js initialized (dbg=' + (dbg ? 'true' : 'false') + ')');
