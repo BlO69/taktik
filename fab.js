@@ -229,23 +229,54 @@
   }
 
   // --- NEW: helper to ensure live.js module is loaded if not present ---
+    // --- NEW: helper to ensure live.js module is loaded if not present ---
   function loadLiveScriptIfNeeded() {
     dbgLog('loadLiveScriptIfNeeded: start');
     return new Promise((resolve) => {
       try {
+        // if livekit API already present, done
         if (window.livekit) {
           dbgLog('livekit already present');
           return resolve(true);
         }
 
         // try to find existing script tag (module) that matches live.js
-        const existing = Array.from(document.querySelectorAll('script[type="module"]')).find(s => s.src && s.src.includes('live.js'));
+        const existing = Array.from(document.querySelectorAll('script[type="module"]'))
+          .find(s => s.src && s.src.includes('live.js'));
         if (existing) {
           dbgLog('found existing live.js script tag', existing.src);
-          if (existing.hasAttribute('data-loaded')) {
-            dbgLog('existing live.js is already loaded');
+
+          // if the script was explicitly marked as loaded by live.js or by a previous inject
+          if (existing.hasAttribute('data-loaded') || existing.dataset.loaded === '1') {
+            dbgLog('existing live.js already marked loaded');
+            // also double-check window.livekit
+            return resolve(!!window.livekit);
+          }
+
+          // if window.livekit already present (script executed), resolve
+          if (window.livekit) {
+            dbgLog('window.livekit present despite no data-loaded flag; resolving');
             return resolve(true);
           }
+
+          // if document already loaded and script present, it's likely executed -> resolve
+          if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            // still double-check window.livekit
+            if (window.livekit) {
+              dbgLog('doc ready and livekit present; resolving true');
+              return resolve(true);
+            }
+            // if doc ready but livekit not present, still wait short timeout then resolve false
+            // (prevents promise never settling)
+            dbgLog('doc ready but livekit not present; waiting briefly then resolving false if not loaded');
+            const t = setTimeout(() => { clearTimeout(t); resolve(false); }, 350);
+            // also attach listeners just in case load event will fire (rare)
+            existing.addEventListener('load', () => { dbgLog('existing live.js loaded (late)'); resolve(true); });
+            existing.addEventListener('error', (err) => { dbgLog('existing live.js failed to load', err); resolve(false); });
+            return;
+          }
+
+          // otherwise attach listeners (normal case)
           existing.addEventListener('load', () => { dbgLog('existing live.js loaded'); resolve(true); });
           existing.addEventListener('error', (err) => { dbgLog('existing live.js failed to load', err); resolve(false); });
           return;
