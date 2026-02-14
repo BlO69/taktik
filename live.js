@@ -27,11 +27,13 @@ let localVideoTrack = null;
 let localAudioTrack = null;
 let currentlyPublishing = false;
 
+// --- patch: getSlotEl with fallback IDs ---
 const VIDEO_SLOT_IDS = {
   owner: 'player1Video',
   opponent: 'player2Video',
   moderator: 'moderatorVideo'
 };
+
 
 const DEFAULT_LIVEKIT_TOKEN_ENDPOINT = 'https://mvkfawtnvahxqwcbcfkb.supabase.co/functions/v1/get_livekit_token';
 
