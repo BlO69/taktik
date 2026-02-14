@@ -46,6 +46,35 @@ function safeToString(x) {
     return String(x);
   }
 }
+// normalize identity strings from participants (strip common prefixes, keep trimmed string)
+function normalizeIdentity(s) {
+  try {
+    const raw = safeToString(s) ?? '';
+    // enlever préfixes courants comme "user:", "user-", "user_" ou "u:"
+    return String(raw).replace(/^(user[:\-_]|u[:\-_])/i, '').trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+function participantToSlotIdentity(participant, gameState) {
+  // normalize participant identity and fallback to other ids LiveKit might expose
+  const ident = normalizeIdentity(participant?.identity ?? participant?.sid ?? participant?.name ?? '');
+  if (dbg) dbgLog('participantToSlotIdentity:', { ident, participant });
+  if (!gameState) return 'moderator';
+
+  // support many field variants in gameState
+  const ownerId = safeToString(gameState.owner_id ?? gameState.ownerId ?? gameState.owner ?? '');
+  const opponentId = safeToString(gameState.opponent_id ?? gameState.opponentId ?? gameState.opponent ?? '');
+
+  // normalize game-side ids as well (strip possible prefixes so comparison is consistent)
+  const normOwner = normalizeIdentity(ownerId);
+  const normOpponent = normalizeIdentity(opponentId);
+
+  if (ident && normOwner && ident === normOwner) return 'owner';
+  if (ident && normOpponent && ident === normOpponent) return 'opponent';
+  return 'moderator';
+}
 
 async function dynamicImportLivekit() {
   // Remplace par import statique si tu utilises un bundler
@@ -160,16 +189,6 @@ function getGameState() {
     if (window.currentGame) return window.currentGame;
   } catch (e) { /* ignore */ }
   return null;
-}
-
-function participantToSlotIdentity(participant, gameState) {
-  const ident = safeToString(participant?.identity || '');
-  if (!gameState) return 'moderator';
-  const ownerId = gameState.owner_id ?? gameState.ownerId ?? gameState.owner ?? null;
-  const opponentId = gameState.opponent_id ?? gameState.opponentId ?? gameState.opponent ?? null;
-  if (ident && ownerId && ident === safeToString(ownerId)) return 'owner';
-  if (ident && opponentId && ident === safeToString(opponentId)) return 'opponent';
-  return 'moderator';
 }
 
 // iterate publications safe
