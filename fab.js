@@ -3,7 +3,7 @@
 // Usage: <script src="./fab.js" defer></script>
 (function () {
   // === DEBUG ===
-  const dbg = true; // active les alertes de debug
+  const dbg = false; // active les alertes de debug
   function dbgLog(...args) {
     if (!dbg) return;
     try {
