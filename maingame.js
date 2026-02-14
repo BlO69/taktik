@@ -66,7 +66,27 @@ async function updatePlayerStatsOnce() {
         // ignore invitation fetch error
       }
     }
-
+    // --- Compatibility shim for live.js / other modules ---
+    try {
+      window.gameState = window.gameState || {};
+      // preserve existing id if present
+      window.gameState.id = window.gameState.id || gid;
+      // expose both snake_case and camelCase to be safe
+      if (ownerId) {
+        window.gameState.owner_id = ownerId;
+        window.gameState.ownerId = ownerId;
+      }
+      if (opponentId) {
+        window.gameState.opponent_id = opponentId;
+        window.gameState.opponentId = opponentId;
+      }
+      // if there's a taktikGame wrapper, ensure getState returns this
+      if (!window.taktikGame) window.taktikGame = {};
+      if (typeof window.taktikGame.getState !== 'function') {
+        window.taktikGame.getState = () => window.gameState;
+      }
+    } catch (e) { console.warn('gameState compatibility shim failed', e); }
+    
     const ids = [];
     if (ownerId) ids.push(ownerId);
     if (opponentId && !ids.includes(opponentId)) ids.push(opponentId);
