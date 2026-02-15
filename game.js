@@ -1069,6 +1069,8 @@ exposeGameStateToWindow();
       state.ownerId = g.owner_id ?? state.ownerId;
       state.opponentId = g.opponent_id ?? state.opponentId;
       state.party_id = g.party_id ?? state.party_id;
+      // ensure global shim mirrors the authoritative row we just polled
+exposeGameStateToWindow();
 
       // fetch pseudos if needed (only if changed or missing)
       if (state.ownerId !== prevOwner || state.opponentId !== prevOpponent || !state.ownerProfile || !state.opponentProfile) {
