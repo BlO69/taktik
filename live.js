@@ -71,7 +71,7 @@ function normalizeIdentity(s) {
 function participantToSlotIdentity(participant, gameState) {
   const ident = normalizeIdentity(participant?.identity ?? participant?.sid ?? participant?.name ?? '');
   if (dbg) dbgLog('participantToSlotIdentity:', { ident, participant });
-  if (!gameState) return 'moderator';
+  if (!gameState) return null;
 
   const ownerId = safeToString(gameState.owner_id ?? gameState.ownerId ?? gameState.owner ?? '');
   const opponentId = safeToString(gameState.opponent_id ?? gameState.opponentId ?? gameState.opponent ?? '');
