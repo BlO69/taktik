@@ -21,6 +21,24 @@ function dbgAlert(...args) {
   if (!dbg) return;
   try { alert('[live.js] ' + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')); } catch (e) {}
 }
+// helper: attendre que window.livekit soit prêt (timeout en ms)
+// placé dans live.js pour exposition (window.livekit.waitForReady)
+function waitForLivekit(timeout = 2000) {
+  if (window.livekit) return Promise.resolve(window.livekit);
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const iv = setInterval(() => {
+      if (window.livekit) {
+        clearInterval(iv);
+        return resolve(window.livekit);
+      }
+      if (Date.now() - start > timeout) {
+        clearInterval(iv);
+        return resolve(null);
+      }
+    }, 120);
+  });
+}
 
 let liveRoom = null;
 let localVideoTrack = null;
@@ -628,7 +646,8 @@ window.livekit = window.livekit || {
   connectRoom: async (roomName, identity, gameId) => connectAndJoin(roomName, identity, gameId),
   // optional helpers that maingame/fab might call; safe no-ops by default
   toggleVideo: (logicalName, enabled) => { /* no-op by default; live manager could implement */ },
-  toggleMiniMap: (enabled) => { /* no-op by default; UI manager could implement */ }
+  toggleMiniMap: (enabled) => { /* no-op by default; UI manager could implement */ },
+  waitForReady: waitForLivekit
 };
 
 // Backwards compatibility alias (some modules expect window.liveManager)
