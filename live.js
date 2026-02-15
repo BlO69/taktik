@@ -349,13 +349,12 @@ async function requestLivekitTokenForGame(gameId) {
 
 async function connectAndJoin(roomName, identity, gameId) {
   dbgLog('connectAndJoin', { roomName, identity, gameId });
-  const LK = await dynamicImportLivekit();
-  const connectFn = LK.connect || LK.default?.connect || LK.Room?.connect;
-  if (typeof connectFn !== 'function') {
-    dbgError('livekit connect not available on imported module');
-    throw new Error('livekit connect not available');
-  }
 
+  // load the livekit module (prefers window.LivekitClient if preloaded)
+  const LK = await dynamicImportLivekit();
+  dbgLog('livekit module keys:', Object.keys(LK || {}));
+
+  // token retrieval (same as before)
   let tokenResp;
   if (gameId) {
     try {
@@ -369,14 +368,12 @@ async function connectAndJoin(roomName, identity, gameId) {
     const url = new URL(endpoint, window.location.origin);
     if (roomName) url.searchParams.set('room', roomName);
     if (identity) url.searchParams.set('identity', identity);
-
     let accessToken = null;
     try {
       const sess = await window.supabase.auth.getSession();
       const data = sess?.data?.session ?? sess?.data ?? sess?.session ?? null;
       accessToken = data?.access_token ?? data?.accessToken ?? null;
     } catch (e) {}
-
     const headers = accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {};
     dbgLog('Fetching token (fallback) from', url.toString());
     const resp = await fetch(url.toString(), { headers, credentials: 'include' });
@@ -394,29 +391,74 @@ async function connectAndJoin(roomName, identity, gameId) {
     throw new Error('token or livekit_url missing in response');
   }
 
-  dbgLog('Connecting to LiveKit server', urlStr, 'roomName', roomName);
-  let room;
-  try {
-    room = await connectFn(urlStr, token, { autoSubscribe: true });
-  } catch (e) {
-    dbgError('LiveKit connect failed', e);
-    throw e;
+  // --- CONNECT: try several shapes of API ---
+  dbgLog('Attempting to connect to LiveKit server', urlStr, 'roomName', roomName);
+
+  // 1) If module exposes a top-level connect function (older style)
+  if (typeof LK.connect === 'function') {
+    try {
+      const room = await LK.connect(urlStr, token, { autoSubscribe: true });
+      liveRoom = room;
+      dbgLog('Connected via LK.connect');
+      dbgAlert('Connected to LiveKit room: ' + (tokenResp.room || roomName));
+      await subscribeExistingParticipants(room);
+      room?.on && room.on('participantConnected', p => handleParticipant(p, getGameState()));
+      room?.on && room.on('participantDisconnected', p => { const slot = participantToSlotIdentity(p, getGameState()); clearSlot(getSlotEl(slot)); });
+      return room;
+    } catch (e) {
+      dbgError('LK.connect failed', e);
+      throw e;
+    }
   }
 
-  liveRoom = room;
+  // 2) If module exports Room class: new Room(); await room.connect(...)
+  const RoomClass = LK.Room || LK.default?.Room || LK.default;
+  if (typeof RoomClass === 'function') {
+    try {
+      const room = new RoomClass();
+      await room.connect(urlStr, token, { autoSubscribe: true });
+      liveRoom = room;
+      dbgLog('Connected via new Room().connect');
+      dbgAlert('Connected to LiveKit room: ' + (tokenResp.room || roomName));
+      await subscribeExistingParticipants(room);
+      room?.on && room.on('participantConnected', p => handleParticipant(p, getGameState()));
+      room?.on && room.on('participantDisconnected', p => { const slot = participantToSlotIdentity(p, getGameState()); clearSlot(getSlotEl(slot)); });
+      return room;
+    } catch (e) {
+      dbgError('Room.connect flow failed', e);
+      throw e;
+    }
+  }
 
-  await subscribeExistingParticipants(room);
+  // 3) If UMD preloaded on window (window.LivekitClient) — try that
+  if (window.LivekitClient) {
+    dbgLog('Trying window.LivekitClient (UMD) for connection');
+    const WK = window.LivekitClient;
+    if (typeof WK.connect === 'function') {
+      const room = await WK.connect(urlStr, token, { autoSubscribe: true });
+      liveRoom = room;
+      dbgLog('Connected via window.LivekitClient.connect');
+      dbgAlert('Connected to LiveKit room: ' + (tokenResp.room || roomName));
+      await subscribeExistingParticipants(room);
+      room?.on && room.on('participantConnected', p => handleParticipant(p, getGameState()));
+      room?.on && room.on('participantDisconnected', p => { const slot = participantToSlotIdentity(p, getGameState()); clearSlot(getSlotEl(slot)); });
+      return room;
+    } else if (typeof WK.Room === 'function') {
+      const room = new WK.Room();
+      await room.connect(urlStr, token, { autoSubscribe: true });
+      liveRoom = room;
+      dbgLog('Connected via new window.LivekitClient.Room().connect');
+      dbgAlert('Connected to LiveKit room: ' + (tokenResp.room || roomName));
+      await subscribeExistingParticipants(room);
+      room?.on && room.on('participantConnected', p => handleParticipant(p, getGameState()));
+      room?.on && room.on('participantDisconnected', p => { const slot = participantToSlotIdentity(p, getGameState()); clearSlot(getSlotEl(slot)); });
+      return room;
+    }
+  }
 
-  room?.on && room.on('participantConnected', p => handleParticipant(p, getGameState()));
-  room?.on && room.on('participantDisconnected', p => {
-    const slot = participantToSlotIdentity(p, getGameState());
-    const slotEl = getSlotEl(slot);
-    clearSlot(slotEl);
-  });
-
-  dbgLog('Connected to LiveKit room', tokenResp.room || roomName);
-  dbgAlert('Connected to LiveKit room: ' + (tokenResp.room || roomName));
-  return room;
+  // If we reach here, none of the expected shapes existed
+  dbgError('livekit connect not available on imported module', { keys: Object.keys(LK || {}), windowLivekit: !!window.LivekitClient });
+  throw new Error('livekit connect not available on imported module');
 }
 
 async function startPublish() {
