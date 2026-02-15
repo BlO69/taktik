@@ -435,17 +435,34 @@ function markUnsubscribed(pub) {
  * - Video subscriptions are limited client-side to avoid excessive streams (limit = 3).
  * - Always allow subscriptions to owner/opponent/moderator slots for video/audio.
  */
+/* LIGNE 438 -> 458 : remplacement de spectatorMaySubscribe */
 function spectatorMaySubscribe(pub, participant) {
   const kind = getPublicationKind(pub);
   if (!['video', 'audio'].includes(kind)) return false;
 
-  // if this publication belongs to owner/opponent/moderator slot, always allow
   const gs = getGameState();
   try {
-    const slot = participantToSlotIdentity(participant, gs);
-    if (['owner', 'opponent', 'moderator'].includes(slot)) {
-      return true;
+    // 1) d'abord essayer avec l'objet participant fourni
+    let slot = null;
+    try {
+      slot = participantToSlotIdentity(participant, gs);
+    } catch (e) {
+      // ignore
     }
+
+    // 2) si pas de participant, essayer d'inférer à partir de la publication (participantSid / participantIdentity / owner metadata)
+    if (!slot && pub) {
+      const pubOwnerIdent = normalizeIdentity(pub.participantSid ?? pub.participantIdentity ?? pub.owner ?? pub.publisher ?? '');
+      if (pubOwnerIdent) {
+        const normOwner = normalizeIdentity(gs?.owner_id ?? gs?.ownerId ?? gs?.owner ?? '');
+        const normOpponent = normalizeIdentity(gs?.opponent_id ?? gs?.opponentId ?? gs?.opponent ?? '');
+        if (pubOwnerIdent === normOwner) slot = 'owner';
+        else if (pubOwnerIdent === normOpponent) slot = 'opponent';
+      }
+    }
+
+    // Always allow owner/opponent/moderator publications (video or audio)
+    if (['owner', 'opponent', 'moderator'].includes(slot)) return true;
   } catch (e) {
     dbgWarn('spectatorMaySubscribe: participantToSlotIdentity failed', e);
   }
@@ -457,6 +474,7 @@ function spectatorMaySubscribe(pub, participant) {
   if (subscribedVideoCount < 3) return true;
   return false;
 }
+
 
 /** Try to disable subscription on a publication using multiple API variants */
 async function disableSubscriptionOnPub(pub) {
@@ -522,6 +540,7 @@ async function handlePublication(pub, participant, role) {
     }
 
     // If subscribed (or after we attempted to subscribe), attach if available
+    /* LIGNE 525 -> 533 : remplacement dans handlePublication (attacher aussi l'audio du même participant) */
     const track = pub.track ?? pub;
     const isNowSubscribed = (pub.isSubscribed ?? true);
     if (track && isNowSubscribed) {
@@ -529,8 +548,52 @@ async function handlePublication(pub, participant, role) {
       const gameState = getGameState();
       const slot = participantToSlotIdentity(participant, gameState);
       const slotEl = getSlotEl(slot);
+
+      // attach the publication's track (video or audio)
       attachTrackToSlot(track, slotEl, { isLocalPreview: false });
       markSubscribed(pub, participant);
+
+      // If this was a video publication, attempt to attach the participant's audio pubs to the same slot
+      try {
+        if (getPublicationKind(pub) === 'video' && participant) {
+          const tks = participant.tracks;
+          if (tks) {
+            // iterate participant.tracks in a compatible way (Map | Array | forEach)
+            if (typeof tks.forEach === 'function') {
+              tks.forEach((pubCandidate) => {
+                try {
+                  if (getPublicationKind(pubCandidate) === 'audio') {
+                    const audioTrack = pubCandidate.track ?? pubCandidate;
+                    attachTrackToSlot(audioTrack, slotEl, { isLocalPreview: false });
+                    markSubscribed(pubCandidate, participant);
+                  }
+                } catch (e) { /* ignore per-track errors */ }
+              });
+            } else if (Array.isArray(tks)) {
+              tks.forEach((pubCandidate) => {
+                try {
+                  if (getPublicationKind(pubCandidate) === 'audio') {
+                    const audioTrack = pubCandidate.track ?? pubCandidate;
+                    attachTrackToSlot(audioTrack, slotEl, { isLocalPreview: false });
+                    markSubscribed(pubCandidate, participant);
+                  }
+                } catch (e) {}
+              });
+            } else if (tks instanceof Map) {
+              for (const pubCandidate of tks.values()) {
+                try {
+                  if (getPublicationKind(pubCandidate) === 'audio') {
+                    const audioTrack = pubCandidate.track ?? pubCandidate;
+                    attachTrackToSlot(audioTrack, slotEl, { isLocalPreview: false });
+                    markSubscribed(pubCandidate, participant);
+                  }
+                } catch (e) {}
+              }
+            }
+          }
+        }
+      } catch (e) { /* ignore errors */ }
+    }
     }
   } catch (e) {
     dbgWarn('[live.js] handlePublication failed', e);
