@@ -105,6 +105,21 @@ export default async function initGame(supabaseClient) {
   gameId = urlp.get('game_id') || null;
   invitationId = urlp.get('invitation_id') || null;
 
+  // --- Exposer un shim global minimal pour que les autres modules (live.js, fab.js, maingame.js) puissent lire le gameId ---
+window.gameState = window.gameState || {};
+if (gameId) {
+  window.gameState.id = gameId;
+  window.gameState.gameId = gameId;
+} else {
+  window.gameState.id = window.gameState.id ?? null;
+  window.gameState.gameId = window.gameState.gameId ?? null;
+}
+// rétro-compat : provide taktikGame.getState() si absent (fab.js / live.js s'en servent)
+window.taktikGame = window.taktikGame || {};
+if (typeof window.taktikGame.getState !== 'function') {
+  window.taktikGame.getState = () => window.gameState;
+}
+
   // Helper: get current user
   async function getUser() {
     try {
