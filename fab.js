@@ -118,56 +118,60 @@
   }
 
   // Récupération souple de l'état "series" (plusieurs chemins possibles)
-  function getSeriesState() {
-    dbgLog('getSeriesState: start');
-    try {
-      // 1) window.taktikGame.getState()?.series
-      if (window.taktikGame && typeof window.taktikGame.getState === 'function') {
-        const gs = window.taktikGame.getState();
-        dbgLog('taktikGame state', gs);
-        if (gs) {
-          if (gs.series && typeof gs.series === 'object') {
-            dbgLog('found gs.series object', gs.series);
-            return gs.series;
-          }
-          if (gs.series_id || gs.seriesStatus || gs.series_status || gs.seriesId) {
-            const res = {
-              id: gs.series_id || gs.seriesId || (gs.series && gs.series.id) || null,
-              status: gs.series_status || gs.seriesStatus || (gs.series && gs.series.status) || null
-            };
-            dbgLog('constructed series from gs', res);
-            return res;
-          }
+  // getSeriesState - improved fallback to window.gameState and various shapes
+function getSeriesState() {
+  dbgLog('getSeriesState: start');
+  try {
+    // 1) taktikGame.getState()
+    if (window.taktikGame && typeof window.taktikGame.getState === 'function') {
+      const gs = window.taktikGame.getState();
+      dbgLog('taktikGame state', gs);
+      if (gs) {
+        if (gs.series && typeof gs.series === 'object') return gs.series;
+        if (gs.series_id || gs.seriesStatus || gs.series_status || gs.seriesId || (gs.series && (gs.series.id || gs.series.status))) {
+          return {
+            id: gs.series_id || gs.seriesId || (gs.series && gs.series.id) || null,
+            status: gs.series_status || gs.seriesStatus || (gs.series && gs.series.status) || null
+          };
         }
+        // sometimes the series info may be embedded under gameState.series
+        if (gs.game && gs.game.series) return gs.game.series;
       }
-
-      // 2) window.seriesState or window.series
-      if (window.seriesState && typeof window.seriesState === 'object') {
-        dbgLog('found window.seriesState', window.seriesState);
-        return window.seriesState;
-      }
-      if (window.series && typeof window.series === 'object') {
-        dbgLog('found window.series', window.series);
-        return window.series;
-      }
-
-      // 3) data attributes on body (data-series-id / data-series-status)
-      const body = document.body;
-      if (body) {
-        const sid = body.getAttribute('data-series-id');
-        const sst = body.getAttribute('data-series-status');
-        if (sid || sst) {
-          const res = { id: sid || null, status: sst || null };
-          dbgLog('found series on body attributes', res);
-          return res;
-        }
-      }
-    } catch (e) {
-      dbgLog('getSeriesState error', e);
     }
-    dbgLog('getSeriesState: no series found');
-    return null;
+
+    // 2) window.gameState (commonly set by maingame.js)
+    if (window.gameState && typeof window.gameState === 'object') {
+      const g = window.gameState;
+      dbgLog('found window.gameState', g);
+      if (g.series && typeof g.series === 'object') return g.series;
+      if (g.series_id || g.series_status || g.status) {
+        return {
+          id: g.series_id || g.seriesId || (g.series && g.series.id) || null,
+          status: g.series_status || g.seriesStatus || g.status || null
+        };
+      }
+      // no series but maybe game status available
+      if (g.status) return { id: g.id ?? null, status: g.status };
+    }
+
+    // 3) window.seriesState or window.series
+    if (window.seriesState && typeof window.seriesState === 'object') return window.seriesState;
+    if (window.series && typeof window.series === 'object') return window.series;
+
+    // 4) data attributes on body
+    const body = document.body;
+    if (body) {
+      const sid = body.getAttribute('data-series-id');
+      const sst = body.getAttribute('data-series-status') || body.getAttribute('data-series-state');
+      if (sid || sst) return { id: sid || null, status: sst || null };
+    }
+
+  } catch (e) {
+    dbgLog('getSeriesState error', e);
   }
+  dbgLog('getSeriesState: no series found');
+  return null;
+}
 
   // Récupération souple de l'user id via supabase si présent
   async function getCurrentUserId() {
