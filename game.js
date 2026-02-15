@@ -1776,6 +1776,7 @@ exposeGameStateToWindow();
 
       // set new game id
       gameId = newGameId;
+      exposeGameStateToWindow();
 
       // reset outcomeShownForGameId so modal/sound can appear for the new game when it finishes later
       state.outcomeShownForGameId = null;
