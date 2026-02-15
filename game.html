@@ -191,12 +191,13 @@
   <!-- MAIN GAME MODULE (regroupe les scripts précédemment inline) -->
   <script type="module" src="./maingame.js"></script>
 <script src="./fab.js" defer></script>
+<!-- Précharger LiveKit client via jsDelivr (module ESM) pour éviter les problèmes d'import dynamique -->
 <script type="module">
-  import * as LivekitClient from 'https://cdn.jsdelivr.net/npm/livekit-client@1.4.6/dist/livekit-client.esm.mjs';
-  window.LivekitClient = LivekitClient;
-  console.log('LivekitClient loaded', LivekitClient);
+  import * as LK from 'https://cdn.jsdelivr.net/npm/livekit-client@2.17.1/dist/livekit-client.esm.mjs';
+  // expose sur window pour que live.js / fab.js l'utilisent
+  window.LivekitClient = LK;
+  console.log('Preloaded LivekitClient (v2.17.1)');
 </script>
-
   <script>
   // Remplace par l'URL de ta Edge Function Supabase
   window.LIVEKIT_TOKEN_ENDPOINT = 'https://mvkfawtnvahxqwcbcfkb.supabase.co/functions/v1/get_livekit_token';
