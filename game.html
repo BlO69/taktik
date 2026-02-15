@@ -191,7 +191,12 @@
   <!-- MAIN GAME MODULE (regroupe les scripts précédemment inline) -->
   <script type="module" src="./maingame.js"></script>
 
-  <!-- live.js doit gérer les flux audio/vidéo (player1/player2/mod) -->
+<script type="module">
+  import * as LivekitClient from 'https://cdn.jsdelivr.net/npm/livekit-client@1.4.6/dist/livekit-client.esm.mjs';
+  window.LivekitClient = LivekitClient;
+  console.log('LivekitClient loaded', LivekitClient);
+</script>
+
   <script>
   // Remplace par l'URL de ta Edge Function Supabase
   window.LIVEKIT_TOKEN_ENDPOINT = 'https://mvkfawtnvahxqwcbcfkb.supabase.co/functions/v1/get_livekit_token';
