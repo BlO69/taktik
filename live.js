@@ -97,14 +97,12 @@ function participantToSlotIdentity(participant, gameState) {
 }
 
 async function dynamicImportLivekit() {
-  // Remplace par import statique si tu utilises un bundler
-  dbgLog('Importing livekit-client from CDN...');
-  try {
-    return await import('https://unpkg.com/livekit-client@1.4.6/dist/livekit-client.es.js');
-  } catch (e) {
-    dbgError('Failed to import livekit-client via CDN', e);
-    throw e;
+  if (window.LivekitClient) {
+    dbgLog('Using preloaded LivekitClient from window');
+    return window.LivekitClient;
   }
+  dbgError('LivekitClient not found on window (script not loaded)');
+  throw new Error('LivekitClient not loaded');
 }
 
 function getSlotEl(slotKey) {
