@@ -404,6 +404,56 @@ document.addEventListener('display:grille', (e) => {
   }
 })();
 
+// --- Lier fab -> livekit (register fab:diffuser handler)
+// Colle ce bloc dans maingame.js après l'initialisation (ou à la fin du IIFE d'init)
+(function registerFabDiffuser() {
+  function tryRegister() {
+    if (!window.fab || typeof window.fab.registerHandler !== 'function') return false;
+    if (!window.livekit || typeof window.livekit.startPublish !== 'function') return false;
+
+    // évite double enregistrement
+    try {
+      // unregister previous if present
+      try { window.fab.unregisterHandler && window.fab.unregisterHandler('diffuser'); } catch(e){}
+
+      window.fab.registerHandler('diffuser', async ({ action, time, meta } = {}) => {
+        try {
+          // toggle: si déjà publishing => stop, sinon start
+          const isPub = (typeof window.livekit.isPublishing === 'function') ? !!window.livekit.isPublishing() : false;
+          if (isPub && typeof window.livekit.stopPublish === 'function') {
+            await window.livekit.stopPublish();
+            return { status: 'stopped' };
+          }
+          if (typeof window.livekit.startPublish === 'function') {
+            await window.livekit.startPublish();
+            return { status: 'started' };
+          }
+          console.warn('livekit: start/stop non disponible');
+        } catch (err) {
+          console.error('fab->livekit handler error', err);
+          // rethrow si nécessaire
+          throw err;
+        }
+      });
+
+      console.log('maingame: fab diffuser handler registered -> livekit');
+      return true;
+    } catch (e) {
+      console.warn('maingame: registerFabDiffuser failed', e);
+      return false;
+    }
+  }
+
+  if (!tryRegister()) {
+    // retry quelques fois si les modules ne sont pas encore prêts
+    let attempts = 0;
+    const iv = setInterval(() => {
+      attempts++;
+      if (tryRegister() || attempts >= 10) clearInterval(iv);
+    }, 500);
+  }
+})();
+
 // -----------------------------
 // BACK navigation helpers (déplacé depuis inline script)
 // -----------------------------
