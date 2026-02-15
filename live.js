@@ -598,7 +598,6 @@ async function handlePublication(pub, participant, role) {
   } catch (e) {
     dbgWarn('[live.js] handlePublication failed', e);
   }
-}
 
 async function handleParticipant(participant, gameState, role) {
   try {
