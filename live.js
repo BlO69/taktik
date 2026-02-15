@@ -593,12 +593,11 @@ async function handlePublication(pub, participant, role) {
           }
         }
       } catch (e) { /* ignore errors */ }
-    }
-    }
+    }    
   } catch (e) {
     dbgWarn('[live.js] handlePublication failed', e);
   }
-
+}
 async function handleParticipant(participant, gameState, role) {
   try {
     // iterate current publications
