@@ -1381,7 +1381,9 @@ exposeGameStateToWindow();
         state.winnerId = null;
         state.winnerPseudo = null;
         state.outcomeShownForGameId = null;
-
+        gameId = newGameId;
+        exposeGameStateToWindow();
+        
         // re-render an empty board for this client (so loser sees cleared board immediately when they join)
         renderBoard(state.board);
         updateTurnUI();
