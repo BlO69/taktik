@@ -119,6 +119,30 @@ window.taktikGame = window.taktikGame || {};
 if (typeof window.taktikGame.getState !== 'function') {
   window.taktikGame.getState = () => window.gameState;
 }
+// utilitaire pour synchroniser l'état game -> window.gameState
+function exposeGameStateToWindow() {
+  try {
+    window.gameState = window.gameState || {};
+    window.gameState.id = gameId ?? window.gameState.id ?? null;
+    window.gameState.gameId = window.gameState.id;
+    // mirror owner/opponent if known
+    if (state.ownerId) {
+      window.gameState.owner_id = state.ownerId;
+      window.gameState.ownerId = state.ownerId;
+    }
+    if (state.opponentId) {
+      window.gameState.opponent_id = state.opponentId;
+      window.gameState.opponentId = state.opponentId;
+    }
+    // other useful fields for consumers
+    window.gameState.status = state.status ?? window.gameState.status ?? null;
+    window.gameState.current_turn = state.currentTurn ?? window.gameState.current_turn ?? null;
+  } catch (e) {
+    dbgLog('exposeGameStateToWindow failed', e);
+  }
+}
+// appel initial pour s'assurer qu'on a bien propagé la valeur du param
+exposeGameStateToWindow();
 
   // Helper: get current user
   async function getUser() {
