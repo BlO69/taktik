@@ -3,10 +3,15 @@
 // -> Compatible avec display.js (écoute display:* et applique les changements)
 // --> N'importera pas et ne touchera pas aux responsabilités de live.js ni fab.js
 
-import { supabase } from './supabaseClient.js';
+// Import souple du client Supabase (supporte named export, default export, ou window.supabase déjà présent)
+import * as _sb from './supabaseClient.js';
+const supabase = _sb?.supabase ?? _sb?.default ?? window.supabase ?? null;
 
-// expose supabase globalement comme avant (game.js et autres s'attendent à window.supabase)
+if (!supabase) {
+  console.warn('supabase client non trouvé (maingame.js). Certaines fonctionnalités (live, profil) peuvent échouer.');
+}
 window.supabase = supabase;
+
 
 // mappings UI
 const uiMap = {
