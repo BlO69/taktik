@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Taktik — Partie</title>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --cell-size: 48px; }
+
+    #boardGrid {
+      display: grid;
+      grid-template-columns: repeat(20, var(--cell-size));
+      padding: 6px;
+      background: transparent;
+    }
+
+    .board-cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.03);
+      border: 1px solid rgba(2, 6, 23, 0.06);
+      position: relative;
+      overflow: hidden;
+      transition: background-color 160ms ease;
+    }
+
+    .board-cell img.piece-img {
+      width: 92%;
+      height: 92%;
+      object-fit: contain;
+      pointer-events: none;
+      display: block;
+    }
+
+    .board-cell.piece-x {
+      background-color: #fee2e2;
+    }
+    .board-cell.piece-o {
+      background-color: #fff7cc;
+    }
+
+    .board-cell.piece-x.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }
+    .board-cell.piece-o.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }
+
+    .board-cell.aligned { animation: takt-align-pulse 900ms ease-in-out 3; z-index:2; transform-origin:center; }
+    @keyframes takt-align-pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+      50% { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,255,255,0.6); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .35rem .6rem;
+      border-radius: .5rem;
+      background: white;
+      box-shadow: 0 1px 2px rgba(2,6,23,0.06);
+      cursor: pointer;
+      border: 1px solid rgba(2,6,23,0.04);
+    }
+    .back-btn svg { width: 18px; height: 18px; }
+
+    html, body { width: 100%; overflow-x: hidden; }
+
+    /* Fullscreen overlay (centered) */
+    .fullscreen-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.6);
+      z-index: 1200;
+      padding: 20px;
+    }
+    .fullscreen-container {
+      max-width: 95%;
+      max-height: 95%;
+      width: min(1200px, 95%);
+      height: auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+    .fullscreen-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display:block;
+      background: black;
+    }
+
+    /* small UI badge */
+    .fs-badge {
+      position: absolute;
+      top: 14px;
+      left: 18px;
+      background: rgba(0,0,0,0.45);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      z-index: 1210;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .fs-indicator-recording {
+      width:10px;
+      height:10px;
+      background: red;
+      border-radius:50%;
+      box-shadow: 0 0 6px rgba(255,0,0,0.8);
+      animation: fs-blink 1s linear infinite;
+    }
+    @keyframes fs-blink {
+      0% { opacity: 1 }
+      50% { opacity: 0.3 }
+      100% { opacity: 1 }
+    }
+
+    /* Friendly helper text when no stream found */
+    .fs-empty {
+      color: #ddd;
+      font-size: 14px;
+      padding: 20px;
+      text-align:center;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+  <main class="max-w-screen-xl mx-auto p-4">
+    <header class="flex items-center justify-between gap-4 mb-4">
+      <div class="flex items-center gap-3">
+        <button id="backBtn" class="back-btn" aria-label="Retour à la page précédente" title="Retour">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span class="text-sm font-medium">Retour</span>
+        </button>
+        <div class="font-semibold text-lg">Taktik — Aligner 5</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="menuGames" class="px-3 py-1 rounded bg-white shadow text-sm">Matchmaking</button>
+        <button id="newGameBtn" class="px-3 py-1 rounded bg-white shadow text-sm">Nouvelle partie</button>
+        <button id="modeToggle" class="px-3 py-1 rounded bg-white shadow text-sm">Changer mode</button>
+      </div>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <article id="videoCardPlayer1" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="player1Video" class="bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm">Player 1 (vidéo)</div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="player1_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="player1_pseudo" class="font-semibold">Invite</div>
+              <div id="player1_role" class="text-xs text-slate-500">Joueur 1</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="player1_elo">—</span></div>
+            <div>Division: <span id="player1_div">—</span></div>
+            <div>Followers: <span id="player1_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article id="videoCardPlayer2" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="player2Video" class="bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm">Player 2 (vidéo)</div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="player2_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="player2_pseudo" class="font-semibold">Invite</div>
+              <div id="player2_role" class="text-xs text-slate-500">Joueur 2</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="player2_elo">—</span></div>
+            <div>Division: <span id="player2_div">—</span></div>
+            <div>Followers: <span id="player2_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article id="videoCardMod" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="moderatorVideo" class="bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm">Animateur (vidéo)</div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="mod_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="mod_pseudo" class="font-semibold">Animateur</div>
+              <div class="text-xs text-slate-500">Rôle: Animateur</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="mod_elo">—</span></div>
+            <div>Division: <span id="mod_div">—</span></div>
+            <div>Followers: <span id="mod_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div class="flex items-center gap-4">
+            <div class="text-sm">Tour actuel: <span id="currentTurn" class="font-semibold">X</span></div>
+            <div class="flex gap-2 text-xs">
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches X: <span id="scoreX">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches O: <span id="scoreO">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries X: <span id="seriesX">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries O: <span id="seriesO">0</span></div>
+            </div>
+          </div>
+          <div id="minimap" class="w-40 h-24 rounded bg-slate-800" title="Mini-map"></div>
+        </div>
+
+        <div id="boardViewport" class="overflow-auto border rounded p-2" style="max-height:56vh;">
+          <div id="boardGrid" class="mx-auto"></div>
+        </div>
+      </div>
+
+      <aside class="flex flex-col gap-4">
+        <div class="bg-white rounded-lg shadow p-3">
+          <div class="font-semibold text-sm">Informations</div>
+          <p class="text-xs text-slate-500 mt-2">Utilise la colonne de droite pour les sons. Le matchmaking s'ouvre via "Matchmaking".</p>
+        </div>
+
+        <div id="placeholderPanel" class="bg-white rounded-lg shadow p-3 min-h-[120px]">
+          <div>
+            <div id="placeholderTitle" class="font-semibold">Matchmaking</div>
+            <div id
