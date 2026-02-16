@@ -532,31 +532,76 @@ async function handlePublication(pub, participant, role) {
     const isSubscribed = (pub.isSubscribed ?? true);
     const kind = getPublicationKind(pub);
 
-    // If spectator, enforce limit but always allow owner/opponent/moderator pubs
-    if (role === 'spectateur') {
-      if (isSubscribed) {
-        if (!spectatorMaySubscribe(pub, participant)) {
-          dbgLog('Spectator: already at limit, disabling subscription for', getPublicationId(pub), 'kind=', kind);
-          await disableSubscriptionOnPub(pub);
-          markUnsubscribed(pub);
-          return;
-        }
+    // Subscription policy (unifiée) :
+// - Pour les publications des slots "core" (owner/opponent/moderator) ET pour les pistes audio,
+//   tenter l'abonnement pour **tous** les clients (spectateur, owner, opponent, animateur).
+// - Pour les publications non-core : conserver la logique de quota (spectatorMaySubscribe).
+{
+  // détermine si la publication vient d'un slot core (owner/opponent/moderator)
+  let derivedSlot = null;
+  try { derivedSlot = participantToSlotIdentity(participant, getGameState()); } catch (e) { /* ignore */ }
+  const isCoreSlot = ['owner', 'opponent', 'moderator'].includes(derivedSlot);
+
+  // helper sûr pour essayer de s'abonner (gère setSubscribed / subscribe)
+  async function trySubscribe(pubToUse) {
+    try {
+      if (typeof pubToUse.setSubscribed === 'function') {
+        await pubToUse.setSubscribed(true);
+      } else if (typeof pubToUse.subscribe === 'function') {
+        await pubToUse.subscribe();
+      }
+    } catch (e) {
+      dbgWarn('subscribe attempt failed or not available', e);
+    }
+  }
+
+  // Si c'est une publication "core" (ou audio) : tout le monde doit pouvoir y accéder => tenter l'abonnement
+  if (isCoreSlot || kind === 'audio') {
+    if (!isSubscribed) {
+      dbgLog('Core/audio pub: attempting subscribe for', getPublicationId(pub), 'kind=', kind, 'slot=', derivedSlot);
+      await trySubscribe(pub);
+    }
+    // si déjà subscribed, on garde tel quel
+    return;
+  }
+
+  // Sinon (publication non-core) : appliquer la logique de quota existante.
+  // Les spectateurs restent soumis au quota; les non-spectateurs peuvent aussi être limités si la fonction
+  // spectatorMaySubscribe implémente le contrôle global de nombre de vidéos.
+  if (role === 'spectateur') {
+    if (isSubscribed) {
+      if (!spectatorMaySubscribe(pub, participant)) {
+        dbgLog('Spectator: already at limit, disabling subscription for', getPublicationId(pub), 'kind=', kind);
+        await disableSubscriptionOnPub(pub);
+        markUnsubscribed(pub);
+        return;
+      }
+    } else {
+      if (!spectatorMaySubscribe(pub, participant)) {
+        dbgLog('Spectator: skip subscribe (limit reached) for', getPublicationId(pub));
+        return;
+      }
+      await trySubscribe(pub);
+    }
+  } else {
+    // Non-spectator + publication non-core : essayer de s'abonner si quota/local permit
+    if (isSubscribed) {
+      if (!spectatorMaySubscribe(pub, participant)) {
+        dbgLog('Non-spectator: already at limit, disabling subscription for', getPublicationId(pub), 'kind=', kind);
+        await disableSubscriptionOnPub(pub);
+        markUnsubscribed(pub);
+        return;
+      }
+    } else {
+      if (spectatorMaySubscribe(pub, participant)) {
+        await trySubscribe(pub);
       } else {
-        if (!spectatorMaySubscribe(pub, participant)) {
-          dbgLog('Spectator: skip subscribe (limit reached) for', getPublicationId(pub));
-          return;
-        }
-        try {
-          if (typeof pub.setSubscribed === 'function') {
-            await pub.setSubscribed(true);
-          } else if (typeof pub.subscribe === 'function') {
-            await pub.subscribe();
-          }
-        } catch (e) {
-          dbgWarn('subscribe attempt failed or not available', e);
-        }
+        dbgLog('Non-spectator: skip subscribe (limit reached) for', getPublicationId(pub));
+        return;
       }
     }
+  }
+}
 
     // attach when subscribed or if autoSubscribed
     const track = pub.track ?? pub;
