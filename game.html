@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Taktik — Partie</title>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --cell-size: 48px; }
+
+    #boardGrid {
+      display: grid;
+      grid-template-columns: repeat(20, var(--cell-size));
+      padding: 6px;
+      background: transparent;
+    }
+
+    .board-cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.03);
+      border: 1px solid rgba(2, 6, 23, 0.06);
+      position: relative;
+      overflow: hidden;
+      transition: background-color 160ms ease;
+      cursor: pointer;
+    }
+
+    .board-cell img.piece-img {
+      width: 92%;
+      height: 92%;
+      object-fit: contain;
+      pointer-events: none;
+      display: block;
+    }
+
+    .board-cell.piece-x {
+      background-color: #fee2e2;
+    }
+    .board-cell.piece-o {
+      background-color: #fff7cc;
+    }
+
+    .board-cell.piece-x.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }
+    .board-cell.piece-o.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }
+
+    .board-cell.aligned { animation: takt-align-pulse 900ms ease-in-out 3; z-index:2; transform-origin:center; }
+    @keyframes takt-align-pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+      50% { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,255,255,0.6); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .35rem .6rem;
+      border-radius: .5rem;
+      background: white;
+      box-shadow: 0 1px 2px rgba(2,6,23,0.06);
+      cursor: pointer;
+      border: 1px solid rgba(2,6,23,0.04);
+    }
+    .back-btn svg { width: 18px; height: 18px; }
+
+    html, body { width: 100%; overflow-x: hidden; }
+
+    /* Fullscreen API styling (no blur, as requested) */
+    :fullscreen {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      background: #000; /* focus background */
+    }
+    :fullscreen > * {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+    }
+    :fullscreen video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Fallback fullscreen emulation (if requestFullscreen unavailable) */
+    .takt-fullscreen-fallback {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 99999 !important;
+      background: #000;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+    .takt-fullscreen-fallback > video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Recording badge */
+    .rec-badge {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      z-index: 100000;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 6px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      user-select: none;
+      pointer-events: none;
+    }
+    .rec-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff3b30;
+      box-shadow: 0 0 6px rgba(255,59,48,0.8);
+    }
+
+    /* small hint */
+    .slot-hint {
+      font-size: 11px;
+      color: rgba(255,255,255,0.9);
+      position: absolute;
+      right: 6px;
+      top: 6px;
+      background: rgba(0,0,0,0.35);
+      padding: 4px 6px;
+      border-radius: 6px;
+      pointer-events: none;
+      user-select: none;
+      display: none;
+      z-index: 1000;
+    }
+    .board-cell:hover .slot-hint,
+    .slot:hover .slot-hint {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+  <main class="max-w-screen-xl mx-auto p-4">
+    <header class="flex items-center justify-between gap-4 mb-4">
+      <div class="flex items-center gap-3">
+        <button id="backBtn" class="back-btn" aria-label="Retour à la page précédente" title="Retour">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span class="text-sm font-medium">Retour</span>
+        </button>
+        <div class="font-semibold text-lg">Taktik — Aligner 5</div>
+      </div>
+      <div class="flex gap-2">
+        <button id="menuGames" class="px-3 py-1 rounded bg-white shadow text-sm">Matchmaking</button>
+        <button id="newGameBtn" class="px-3 py-1 rounded bg-white shadow text-sm">Nouvelle partie</button>
+        <button id="modeToggle" class="px-3 py-1 rounded bg-white shadow text-sm">Changer mode</button>
+      </div>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <article id="videoCardPlayer1" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="player1Video" class="slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm" title="Cliquez pour agrandir / double-clic pour fermer" role="button" aria-label="Player 1 vidéo">Player 1 (vidéo)
+          <div class="slot-hint">1 clic = agrandir · 2 clics = fermer · 3 = enregistrer</div>
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="player1_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="player1_pseudo" class="font-semibold">Invite</div>
+              <div id="player1_role" class="text-xs text-slate-500">Joueur 1</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="player1_elo">—</span></div>
+            <div>Division: <span id="player1_div">—</span></div>
+            <div>Followers: <span id="player1_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article id="videoCardPlayer2" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="player2Video" class="slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm" title="Cliquez pour agrandir / double-clic pour fermer" role="button" aria-label="Player 2 vidéo">Player 2 (vidéo)
+          <div class="slot-hint">1 clic = agrandir · 2 clics = fermer · 3 = enregistrer</div>
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="player2_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="player2_pseudo" class="font-semibold">Invite</div>
+              <div id="player2_role" class="text-xs text-slate-500">Joueur 2</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="player2_elo">—</span></div>
+            <div>Division: <span id="player2_div">—</span></div>
+            <div>Followers: <span id="player2_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article id="videoCardMod" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="moderatorVideo" class="slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm" title="Cliquez pour agrandir / double-clic pour fermer" role="button" aria-label="Animateur vidéo">Animateur (vidéo)
+          <div class="slot-hint">1 clic = agrandir · 2 clics = fermer · 3 = enregistrer</div>
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="mod_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="mod_pseudo" class="font-semibold">Animateur</div>
+              <div class="text-xs text-slate-500">Rôle: Animateur</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="mod_elo">—</span></div>
+            <div>Division: <span id="mod_div">—</span></div>
+            <div>Followers: <span id="mod_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div class="flex items-center gap-4">
+            <div class="text-sm">Tour actuel: <span id="currentTurn" class="font-semibold">X</span></div>
+            <div class="flex gap-2 text-xs">
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches X: <span id="scoreX">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches O: <span id="scoreO">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries X: <span id="seriesX">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries O: <span id="seriesO">0</span></div>
+            </div>
+          </div>
+          <div id="minimap" class="w-40 h-24 rounded bg-slate-800" title="Mini-map"></div>
+        </div>
+
+        <div id="boardViewport" class="overflow-auto border rounded p-2" style="max-height:56vh;">
+          <div id="boardGrid" class="mx-auto"></div>
+        </div>
+      </div>
+
+      <aside class="flex flex-col gap-4">
+        <div class="bg-white rounded-lg shadow p-3">
+          <div class="font-semibold text-sm">Informations</div>
+          <p class="text-xs text-slate-500 mt-2">Utilise la colonne de droite pour les sons. Le matchmaking s'ouvre via "Matchmaking".</p>
+        </div>
+
+        <div id="placeholderPanel" class="bg-white rounded-lg shadow p-3 min-h-[120px]">
+          <div>
+            <div id="placeholderTitle" class="font-semibold">Matchmaking</div>
+            <div id="placeholderText" class="text-xs text-slate-500 mt-2">Cherche des joueurs, invite-les ou réponds aux invitations.</div>
+          </div>
+        </div>
+
+        <div id="controlsArea" class="bg-white rounded-lg shadow p-3">
+          <div class="text-sm font-semibold">Contrôles</div>
+          <div class="text-xs text-slate-500 mt-2">Sons, punchlines et autres contrôles.</div>
+        </div>
+      </aside>
+    </section>
+
+  </main>
+
+  <!-- MAIN GAME MODULE (regroupe les scripts précédemment inline) -->
+  <script type="module" src="./maingame.js"></script>
+  <!-- live.js doit gérer les flux audio/vidéo (player1/player2/mod) -->
+  <script>
+    // Remplace par l'URL de ta Edge Function Supabase
+    window.LIVEKIT_TOKEN_ENDPOINT = 'https://mvkfawtnvahxqwcbcfkb.supabase.co/functions/v1/get_livekit_token';
+  </script>
+  <script type="module" src="./live.js"></script>
+  <!-- fab.js doit gérer le bouton flottant -->
+  <script src="./fab.js" defer></script>
+  <!-- module en charge de la logique online (garde comme avant) -->
+  <script type="module" src="./online.js"></script>
+
+  <!-- === Ajout : gestion 1 clic = fullscreen (video only), 2 clics = quitter fullscreen & stop enregistrement, 3 clics = démarrer enregistrement local === -->
+  <script>
+    (function () {
+      // selectors for slots (kept as in original structure)
+      const SLOT_SELECTORS = ['#player1Video', '#player2Video', '#moderatorVideo', '.board-cell'];
+
+      // helpers
+      function findSlotElement(el) {
+        if (!el) return null;
+        for (const sel of SLOT_SELECTORS) {
+          const found = el.closest(sel);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      function findVideoInSlot(slot) {
+        if (!slot) return null;
+        if (slot.tagName && slot.tagName.toLowerCase() === 'video') return slot;
+        // prefer a direct <video> child
+        const vid = slot.querySelector('video');
+        return vid || null;
+      }
+
+      // recording state per slot
+      const slotState = new WeakMap();
+      function getStateForSlot(slot) {
+        if (!slotState.has(slot)) slotState.set(slot, {
+          recorder: null,
+          chunks: [],
+          badge: null,
+          timerId: null,
+          startTs: null,
+          stream: null
+        });
+        return slotState.get(slot);
+      }
+
+      // Click sequence detection
+      let clickCount = 0;
+      let clickTimer = null;
+      const CLICK_TIMEOUT = 420; // ms - time window to group clicks
+
+      document.addEventListener('click', (e) => {
+        const slot = findSlotElement(e.target);
+        if (!slot) return;
+        // Prevent default interactive effects
+        e.preventDefault();
+        clickCount++;
+        if (clickTimer) clearTimeout(clickTimer);
+        clickTimer = setTimeout(() => {
+          handleClickSequence(slot, clickCount);
+          clickCount = 0;
+          clickTimer = null;
+        }, CLICK_TIMEOUT);
+      }, true);
+
+      // Handle the grouped clicks
+      function handleClickSequence(slot, count) {
+        if (count >= 3) {
+          // triple click
+          startRecording(slot);
+          return;
+        }
+        if (count === 2) {
+          // double click
+          stopRecording(slot);
+          // also exit fullscreen if active
+          if (document.fullscreenElement) {
+            // exit native fullscreen
+            document.exitFullscreen().catch(()=>{/*ignore*/});
+          } else {
+            // fallback cleanup
+            if (slot.classList.contains('takt-fullscreen-fallback')) {
+              slot.classList.remove('takt-fullscreen-fallback');
+            }
+            // also remove any other fallback elements
+            const fallbacks = document.querySelectorAll('.takt-fullscreen-fallback');
+            fallbacks.forEach(f => f.classList.remove('takt-fullscreen-fallback'));
+          }
+          return;
+        }
+        if (count === 1) {
+          // single click: enter fullscreen but only if there's a video inside slot
+          const video = findVideoInSlot(slot);
+          if (!video) return; // only videos can be fullscreen
+          enterFullscreenForVideo(video, slot);
+        }
+      }
+
+      // Enter fullscreen for the video element (prefer native API)
+      async function enterFullscreenForVideo(video, slot) {
+        try {
+          // If already fullscreen for this video, do nothing
+          if (document.fullscreenElement === video || document.fullscreenElement === slot) return;
+
+          // If video supports requestFullscreen itself, prefer that
+          if (video.requestFullscreen) {
+            await video.requestFullscreen();
+            return;
+          }
+
+          // Fallback: apply class to slot and move video into slot if needed (maintain DOM)
+          slot.classList.add('takt-fullscreen-fallback');
+          slot.setAttribute('data-takt-fs-fallback', '1');
+        } catch (err) {
+          console.warn('enterFullscreen error:', err);
+          slot.classList.add('takt-fullscreen-fallback');
+          slot.setAttribute('data-takt-fs-fallback', '1');
+        }
+      }
+
+      // Recording functions
+      function formatTimeElapsed(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        const hh = Math.floor(totalSec / 3600);
+        const mm = Math.floor((totalSec % 3600) / 60);
+        const ss = totalSec % 60;
+        if (hh > 0) return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+        return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+      }
+
+      function createBadge(slot) {
+        const badge = document.createElement('div');
+        badge.className = 'rec-badge';
+        badge.innerHTML = '<span class="rec-dot" aria-hidden="true"></span><span class="rec-time">00:00</span>';
+        slot.appendChild(badge);
+        return badge;
+      }
+
+      function removeBadge(slot, state) {
+        if (!state) state = getStateForSlot(slot);
+        if (state.badge && state.badge.parentElement) {
+          state.badge.remove();
+          state.badge = null;
+        }
+      }
+
+      async function startRecording(slot) {
+        const video = findVideoInSlot(slot);
+        if (!video) {
+          // nothing to record
+          return;
+        }
+        const state = getStateForSlot(slot);
+        if (state.recorder && state.recorder.state === 'recording') {
+          // already recording
+          return;
+        }
+
+        // Try to get stream from video via captureStream
+        let stream = null;
+        try {
+          if (typeof video.captureStream === 'function') {
+            stream = video.captureStream();
+          } else if (typeof video.mozCaptureStream === 'function') {
+            stream = video.mozCaptureStream();
+          }
+        } catch (err) {
+          console.warn('captureStream failed:', err);
+          stream = null;
+        }
+
+        if (!stream) {
+          // Can't record if no captureStream
+          console.warn('Recording not supported: captureStream unavailable for this video element.');
+          return;
+        }
+
+        // Choose mime type supported by browser
+        let mimeType = '';
+        if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mimeType = 'video/webm;codecs=vp9';
+        else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) mimeType = 'video/webm;codecs=vp8';
+        else if (MediaRecorder.isTypeSupported('video/webm')) mimeType = 'video/webm';
+        else mimeType = ''; // let browser choose
+
+        let recorder;
+        try {
+          recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        } catch (err) {
+          console.warn('MediaRecorder creation failed:', err);
+          return;
+        }
+
+        // prepare state
+        state.recorder = recorder;
+        state.chunks = [];
+        state.stream = stream;
+        state.startTs = Date.now();
+
+        // badge UI
+        state.badge = createBadge(slot);
+        const timeEl = state.badge.querySelector('.rec-time');
+
+        // update counter every second
+        state.timerId = setInterval(() => {
+          const elapsed = Date.now() - state.startTs;
+          if (timeEl) timeEl.textContent = formatTimeElapsed(elapsed);
+        }, 1000);
+
+        recorder.ondataavailable = (ev) => {
+          if (ev.data && ev.data.size > 0) state.chunks.push(ev.data);
+        };
+
+        recorder.onerror = (ev) => {
+          console.warn('MediaRecorder error', ev);
+        };
+
+        recorder.onstop = () => {
+          // assemble blob and trigger download
+          const blob = new Blob(state.chunks, { type: mimeType || 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const ts = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `taktik_recording_${ts}.webm`;
+
+          // create automatic download link
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+            a.remove();
+          }, 1000);
+
+          // cleanup badge & timers
+          clearInterval(state.timerId);
+          state.timerId = null;
+          state.startTs = null;
+          removeBadge(slot, state);
+
+          // reset recorder & chunks (keep stream as it belongs to video)
+          state.recorder = null;
+          state.chunks = [];
+          // note: do not stop video playback tracks - that would interrupt playback
+        };
+
+        // start recording
+        try {
+          recorder.start();
+        } catch (err) {
+          console.warn('recorder.start failed', err);
+          // cleanup
+          clearInterval(state.timerId);
+          state.timerId = null;
+          removeBadge(slot, state);
+          state.recorder = null;
+          state.chunks = [];
+          return;
+        }
+      }
+
+      function stopRecording(slot) {
+        const state = getStateForSlot(slot);
+        if (!state || !state.recorder) return;
+        try {
+          if (state.recorder.state === 'recording' || state.recorder.state === 'paused') {
+            state.recorder.stop();
+          }
+        } catch (err) {
+          console.warn('Error stopping recorder:', err);
+        }
+        // cleanup timer and badge will be handled in onstop
+      }
+
+      // Keyboard escape also exits fullscreen and stops recording for active fullscreen element
+      window.addEventListener('keyup', (e) => {
+        if (e.key === 'Escape') {
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(()=>{/*ignore*/});
+          }
+          // stop recording on all slots
+          // iterate over known states (WeakMap not directly iterable) — so we stop by querying visible fallbacks
+          const potential = document.querySelectorAll('#player1Video, #player2Video, #moderatorVideo, .board-cell');
+          potential.forEach(slot => stopRecording(slot));
+        }
+      });
+
+      // Also ensure that when native fullscreen is changed (e.g., user presses F11 or browser closes), focus handling is safe
+      document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+          // user exited fullscreen: do not automatically stop recordings (per spec, double click stops recording),
+          // but user requested: "qui s'arrêtera au prochain double clic" -> so only double click stops recording.
+          // We therefore leave recordings running if exit was manual. (This respects the user's requested flow.)
+        }
+      });
+
+      // Safety: beforeunload warn if recording active
+      window.addEventListener('beforeunload', (e) => {
+        // if any recorder is active, warn user
+        const potential = document.querySelectorAll('#player1Video, #player2Video, #moderatorVideo, .board-cell');
+        let anyRecording = false;
+        potential.forEach(slot => {
+          const st = slot && slotState.get(slot);
+          if (st && st.recorder && st.recorder.state === 'recording') anyRecording = true;
+        });
+        if (anyRecording) {
+          e.preventDefault();
+          e.returnValue = '';
+          return '';
+        }
+      });
+
+      // Note: we used only standard DOM APIs and did not change existing IDs / structure or other scripts.
+      // This code requires that the live video elements be actual <video> elements inside the slots so captureStream works.
+    })();
+  </script>
+</body>
+</html>
