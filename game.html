@@ -1,0 +1,625 @@
+<!doctype html>
+
+<html lang="fr">        
+<head>        
+  <meta charset="utf-8" />        
+  <meta name="viewport" content="width=device-width,initial-scale=1" />        
+  <title>Taktik — Partie</title>        
+  <!-- Tailwind CDN -->        
+  <script src="https://cdn.tailwindcss.com"></script>        
+  <style>        
+    :root { --cell-size: 48px; }        #boardGrid {        
+  display: grid;        
+  grid-template-columns: repeat(20, var(--cell-size));        
+  padding: 6px;        
+  background: transparent;        
+}        
+    
+.board-cell {        
+  width: var(--cell-size);        
+  height: var(--cell-size);        
+  display: flex;        
+  align-items: center;        
+  justify-content: center;        
+  background: rgba(15, 23, 42, 0.03);        
+  border: 1px solid rgba(2, 6, 23, 0.06);        
+  position: relative;        
+  overflow: hidden;        
+  transition: background-color 160ms ease;        
+  cursor: pointer; /* slots cliquables */      
+}        
+    
+.board-cell img.piece-img {        
+  width: 92%;        
+  height: 92%;        
+  object-fit: contain;        
+  pointer-events: none;        
+  display: block;        
+}        
+    
+.board-cell.piece-x {        
+  background-color: #fee2e2;        
+}        
+.board-cell.piece-o {        
+  background-color: #fff7cc;        
+}        
+    
+.board-cell.piece-x.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }        
+.board-cell.piece-o.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }        
+    
+.board-cell.aligned { animation: takt-align-pulse 900ms ease-in-out 3; z-index:2; transform-origin:center; }        
+@keyframes takt-align-pulse {        
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }        
+  50% { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,255,255,0.6); }        
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }        
+}        
+    
+.back-btn {        
+  display: inline-flex;        
+  align-items: center;        
+  gap: .5rem;        
+  padding: .35rem .6rem;        
+  border-radius: .5rem;        
+  background: white;        
+  box-shadow: 0 1px 2px rgba(2,6,23,0.06);        
+  cursor: pointer;        
+  border: 1px solid rgba(2,6,23,0.04);        
+}        
+.back-btn svg { width: 18px; height: 18px; }        
+    
+html, body { width: 100%; overflow-x: hidden; }
+
+/* Fullscreen styling (no blur) */
+:fullscreen {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: #000; /* attention visuelle */
+}
+:fullscreen > * { width:100%; height:100%; box-sizing:border-box; }
+:fullscreen video, :fullscreen img, :fullscreen .board-cell, :fullscreen .slot {
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+/* Badge REC (chrono) */
+.takt-rec-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 999999;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+  user-select: none;
+}
+.takt-rec-dot {
+  width:10px;
+  height:10px;
+  background: #ff3b30;
+  border-radius:50%;
+  box-shadow: 0 0 6px rgba(255,59,48,0.8);
+}
+
+/* Fallback fullscreen class (if Fullscreen API absent) */
+.takt-fullscreen-fallback {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  background: #000;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* slot hint */
+.slot-hint {
+  font-size: 11px;
+  color: rgba(255,255,255,0.9);
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  background: rgba(0,0,0,0.35);
+  padding: 4px 6px;
+  border-radius: 6px;
+  pointer-events: none;
+  user-select: none;
+  display: none;
+}
+.board-cell:hover .slot-hint,
+.slot:hover .slot-hint { display:block; }
+
+  </style>        
+</head>        
+<body class="bg-slate-50 text-slate-900 antialiased">        
+  <main class="max-w-screen-xl mx-auto p-4">        
+    <header class="flex items-center justify-between gap-4 mb-4">        
+      <div class="flex items-center gap-3">        
+        <button id="backBtn" class="back-btn" aria-label="Retour à la page précédente" title="Retour">        
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">        
+            <polyline points="15 18 9 12 15 6"></polyline>        
+          </svg>        
+          <span class="text-sm font-medium">Retour</span>        
+        </button>        
+        <div class="font-semibold text-lg">Taktik — Aligner 5</div>        
+      </div>        <div class="flex gap-2">        
+    <button id="menuGames" class="px-3 py-1 rounded bg-white shadow text-sm">Matchmaking</button>        
+    <button id="newGameBtn" class="px-3 py-1 rounded bg-white shadow text-sm">Nouvelle partie</button>        
+    <button id="modeToggle" class="px-3 py-1 rounded bg-white shadow text-sm">Changer mode</button>        
+  </div>        
+</header>        
+    
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">        
+  <article id="videoCardPlayer1" class="bg-white rounded-lg shadow p-3 flex flex-col">        
+    <div id="player1Video" class="slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm" title="Cliquez pour agrandir / double-clic pour fermer" role="button" aria-label="Player 1 vidéo">Player 1 (vidéo)
+      <div class="slot-hint">Cliquer pour agrandir</div>
+    </div>        
+    <div class="mt-3 flex items-center justify-between">        
+      <div class="flex items-center gap-3">        
+        <img id="player1_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">        
+        <div class="text-sm">        
+          <div id="player1_pseudo" class="font-semibold">Invite</div>        
+          <div id="player1_role" class="text-xs text-slate-500">Joueur 1</div>        
+        </div>        
+      </div>        
+      <div class="text-right text-xs">        
+        <div>ELO: <span id="player1_elo">—</span></div>        
+        <div>Division: <span id="player1_div">—</span></div>        
+        <div>Followers: <span id="player1_followers">—</span></div>        
+      </div>        
+    </div>        
+  </article>        
+    
+  <article id="videoCardPlayer2" class="bg-white rounded-lg shadow p-3 flex flex-col">        
+    <div id="player2Video" class="slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm" title="Cliquez pour agrandir / double-clic pour fermer" role="button" aria-label="Player 2 vidéo">Player 2 (vidéo)
+      <div class="slot-hint">Cliquer pour agrandir</div>
+    </div>        
+    <div class="mt-3 flex items-center justify-between">        
+      <div class="flex items-center gap-3">        
+        <img id="player2_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">        
+        <div class="text-sm">        
+          <div id="player2_pseudo" class="font-semibold">Invite</div>        
+          <div id="player2_role" class="text-xs text-slate-500">Joueur 2</div>        
+        </div>        
+      </div>        
+      <div class="text-right text-xs">        
+        <div>ELO: <span id="player2_elo">—</span></div>        
+        <div>Division: <span id="player2_div">—</span></div>        
+        <div>Followers: <span id="player2_followers">—</span></div>        
+      </div>        
+    </div>        
+  </article>        
+    
+  <article id="videoCardMod" class="bg-white rounded-lg shadow p-3 flex flex-col">        
+    <div id="moderatorVideo" class="slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm" title="Cliquez pour agrandir / double-clic pour fermer" role="button" aria-label="Animateur vidéo">Animateur (vidéo)
+      <div class="slot-hint">Cliquer pour agrandir</div>
+    </div>        
+    <div class="mt-3 flex items-center justify-between">        
+      <div class="flex items-center gap-3">        
+        <img id="mod_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">        
+        <div class="text-sm">        
+          <div id="mod_pseudo" class="font-semibold">Animateur</div>        
+          <div class="text-xs text-slate-500">Rôle: Animateur</div>        
+        </div>        
+      </div>        
+      <div class="text-right text-xs">        
+        <div>ELO: <span id="mod_elo">—</span></div>        
+        <div>Division: <span id="mod_div">—</span></div>        
+        <div>Followers: <span id="mod_followers">—</span></div>        
+      </div>        
+    </div>        
+  </article>        
+</section>        
+    
+<section class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">        
+  <div class="bg-white rounded-lg shadow p-4">        
+    <div class="flex items-start justify-between gap-4 mb-3">        
+      <div class="flex items-center gap-4">        
+        <div class="text-sm">Tour actuel: <span id="currentTurn" class="font-semibold">X</span></div>        
+        <div class="flex gap-2 text-xs">        
+          <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches X: <span id="scoreX">0</span></div>        
+          <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches O: <span id="scoreO">0</span></div>        
+          <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries X: <span id="seriesX">0</span></div>        
+          <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries O: <span id="seriesO">0</span></div>        
+        </div>        
+      </div>        
+      <div id="minimap" class="w-40 h-24 rounded bg-slate-800" title="Mini-map"></div>        
+    </div>        
+    
+    <div id="boardViewport" class="overflow-auto border rounded p-2" style="max-height:56vh;">        
+      <div id="boardGrid" class="mx-auto"></div>        
+    </div>        
+  </div>        
+    
+  <aside class="flex flex-col gap-4">        
+    <div class="bg-white rounded-lg shadow p-3">        
+      <div class="font-semibold text-sm">Informations</div>        
+      <p class="text-xs text-slate-500 mt-2">Utilise la colonne de droite pour les sons. Le matchmaking s'ouvre via "Matchmaking".</p>        
+    </div>        
+    
+    <div id="placeholderPanel" class="bg-white rounded-lg shadow p-3 min-h-[120px]">        
+      <div>        
+        <div id="placeholderTitle" class="font-semibold">Matchmaking</div>        
+        <div id="placeholderText" class="text-xs text-slate-500 mt-2">Cherche des joueurs, invite-les ou réponds aux invitations.</div>        
+      </div>        
+    </div>        
+    
+    <div id="controlsArea" class="bg-white rounded-lg shadow p-3">        
+      <div class="text-sm font-semibold">Contrôles</div>        
+      <div class="text-xs text-slate-500 mt-2">Sons, punchlines et autres contrôles.</div>        
+    </div>        
+  </aside>        
+</section>
+
+  </main>          <!-- MAIN GAME MODULE (regroupe les scripts précédemment inline) -->          <script type="module" src="./maingame.js"></script>          <!-- live.js doit gérer les flux audio/vidéo (player1/player2/mod) -->          <script>        
+  // Remplace par l'URL de ta Edge Function Supabase        
+  window.LIVEKIT_TOKEN_ENDPOINT = 'https://mvkfawtnvahxqwcbcfkb.supabase.co/functions/v1/get_livekit_token';        
+</script>        <script type="module" src="./live.js"></script>          <!-- fab.js doit gérer le bouton flottant -->          <script src="./fab.js" defer></script>          <!-- module en charge de la logique online (garde comme avant) -->          <script type="module" src="./online.js"></script>
+
+<!-- === Ajout : clic -> fullscreen, dblclick -> quitter + arrêter enregistrement, triple-clic -> start enregistrement dans stockage local (IndexedDB) === -->
+<script>
+(function () {
+  const SLOT_SELECTORS = ['#player1Video', '#player2Video', '#moderatorVideo', '.board-cell', '.slot'];
+
+  function findSlotElement(el) {
+    if (!el) return null;
+    for (const sel of SLOT_SELECTORS) {
+      const found = el.closest(sel);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  // Click counting logic (single / double / triple)
+  let clickCount = 0;
+  let clickTimer = null;
+  const CLICK_WINDOW_MS = 400;
+  let lastClickedSlot = null;
+
+  // Recording state
+  let currentRecorder = null;
+  let recordedChunks = [];
+  let recIntervalId = null;
+  let recStartTs = null;
+  let recBadgeEl = null;
+  let recTargetSlot = null;
+
+  // Helpers for fullscreen
+  async function enterFullscreenElement(el) {
+    if (!el) return;
+    try {
+      if (document.fullscreenElement === el) return;
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+        return;
+      }
+    } catch (err) {
+      console.warn('enterFullscreen error:', err);
+    }
+    // fallback
+    el.classList.add('takt-fullscreen-fallback');
+    el.dataset.taktFsFallback = '1';
+  }
+
+  async function exitFullscreenElement() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+    } catch (err) {
+      console.warn('exitFullscreen error:', err);
+    }
+    // fallback cleanup
+    document.querySelectorAll('.takt-fullscreen-fallback').forEach(el => {
+      el.classList.remove('takt-fullscreen-fallback');
+      delete el.dataset.taktFsFallback;
+    });
+  }
+
+  // Badge UI
+  function createRecBadge(parent) {
+    removeRecBadge(parent);
+    const badge = document.createElement('div');
+    badge.className = 'takt-rec-badge';
+    badge.innerHTML = '<span class="takt-rec-dot" aria-hidden="true"></span><span class="takt-rec-txt">REC 00:00</span>';
+    // ensure proper positioning context
+    parent.style.position = parent.style.position || getComputedStyle(parent).position === 'static' ? 'relative' : parent.style.position;
+    parent.appendChild(badge);
+    return badge;
+  }
+  function updateRecBadge(badge, seconds) {
+    if (!badge) return;
+    const hh = Math.floor(seconds / 3600);
+    const mm = Math.floor((seconds % 3600) / 60);
+    const ss = seconds % 60;
+    const txt = (hh>0 ? String(hh).padStart(2,'0') + ':' : '') + String(mm).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+    const span = badge.querySelector('.takt-rec-txt');
+    if (span) span.textContent = 'REC ' + txt;
+  }
+  function removeRecBadge(parent) {
+    const existing = parent && parent.querySelector && parent.querySelector('.takt-rec-badge');
+    if (existing) existing.remove();
+  }
+
+  // Save to IndexedDB (simple)
+  function saveToIndexedDB(blob, filename) {
+    return new Promise((resolve, reject) => {
+      try {
+        const req = indexedDB.open('taktik-recordings', 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('recs')) db.createObjectStore('recs', { keyPath: 'id' });
+        };
+        req.onsuccess = (e) => {
+          const db = e.target.result;
+          const tx = db.transaction('recs', 'readwrite');
+          const store = tx.objectStore('recs');
+          const id = String(Date.now()) + '-' + Math.random().toString(36).slice(2,9);
+          const entry = { id, filename, blob, created: new Date().toISOString() };
+          const putReq = store.put(entry);
+          putReq.onsuccess = () => {
+            resolve(id);
+            db.close();
+          };
+          putReq.onerror = (err) => {
+            reject(err);
+            db.close();
+          };
+        };
+        req.onerror = (err) => reject(err);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // Offer download and save
+  async function finalizeRecordingAndSave(chunks) {
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const filename = 'taktik-recording-' + (new Date().toISOString().replace(/[:.]/g,'-')) + '.webm';
+
+    // Auto-download
+    try {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+      }, 2000);
+    } catch (e) {
+      console.warn('Auto-download failed', e);
+    }
+
+    // Store in IndexedDB (best-effort)
+    try {
+      await saveToIndexedDB(blob, filename);
+      console.info('Recording saved in IndexedDB:', filename);
+    } catch (e) {
+      console.warn('Saving to IndexedDB failed', e);
+    }
+  }
+
+  // Start recording: try to gather media streams from video/audio elements inside slot
+  async function startRecording(slotEl) {
+    if (!slotEl) return;
+    if (currentRecorder) {
+      console.warn('Recording already in progress');
+      return;
+    }
+
+    // Collect tracks from media elements inside the slot
+    const mediaEls = Array.from(slotEl.querySelectorAll('video, audio'));
+    let tracks = [];
+
+    for (const m of mediaEls) {
+      try {
+        // Prefer existing srcObject (MediaStream)
+        if (m.srcObject && m.srcObject.getTracks) {
+          tracks.push(...m.srcObject.getTracks());
+        } else if (typeof m.captureStream === 'function') {
+          // captureStream may work for HTMLVideoElement
+          try {
+            const s = m.captureStream();
+            if (s && s.getTracks) tracks.push(...s.getTracks());
+          } catch (e) {
+            console.warn('captureStream failed for element', m, e);
+          }
+        } else {
+          // nothing
+        }
+      } catch (e) {
+        console.warn('error extracting tracks', e);
+      }
+    }
+
+    // If no tracks found, try to use audio/video elements attached at participant containers
+    if (tracks.length === 0) {
+      // As fallback, try to find a video element anywhere inside the slot's subtree
+      const anyVid = slotEl.querySelector('video');
+      if (anyVid) {
+        try {
+          if (anyVid.srcObject && anyVid.srcObject.getTracks) {
+            tracks.push(...anyVid.srcObject.getTracks());
+          } else if (typeof anyVid.captureStream === 'function') {
+            const s = anyVid.captureStream();
+            if (s && s.getTracks) tracks.push(...s.getTracks());
+          }
+        } catch (e) { console.warn(e); }
+      }
+    }
+
+    if (tracks.length === 0) {
+      // No direct media tracks available -> cannot record automatically
+      // Optionally, we could use getDisplayMedia but that requires user permission to share screen.
+      alert('Impossible de démarrer l’enregistrement : aucun flux média trouvé dans ce slot.');
+      return;
+    }
+
+    const combined = new MediaStream(tracks);
+    const optionsCandidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm'
+    ];
+    let options = { mimeType: '' };
+    for (const c of optionsCandidates) {
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+        options.mimeType = c;
+        break;
+      }
+    }
+    if (!options.mimeType) delete options.mimeType;
+
+    try {
+      recordedChunks = [];
+      currentRecorder = new MediaRecorder(combined, options);
+    } catch (e) {
+      console.error('MediaRecorder creation failed', e);
+      alert('Enregistrement non supporté par le navigateur.');
+      currentRecorder = null;
+      return;
+    }
+
+    currentRecorder.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
+    };
+    currentRecorder.onstop = async () => {
+      // finalize
+      try {
+        await finalizeRecordingAndSave(recordedChunks);
+      } catch (e) {
+        console.warn('finalize failed', e);
+      }
+      recordedChunks = [];
+      currentRecorder = null;
+      // remove badge
+      if (recTargetSlot) {
+        removeRecBadge(recTargetSlot);
+      }
+      if (recIntervalId) {
+        clearInterval(recIntervalId);
+        recIntervalId = null;
+      }
+      recStartTs = null;
+      recBadgeEl = null;
+      recTargetSlot = null;
+    };
+
+    // start
+    try {
+      currentRecorder.start();
+    } catch (e) {
+      console.warn('start() failed', e);
+      alert('Impossible de démarrer l\'enregistrement.');
+      currentRecorder = null;
+      return;
+    }
+
+    // badge + timer
+    recTargetSlot = slotEl;
+    recBadgeEl = createRecBadge(slotEl);
+    recStartTs = Date.now();
+    updateRecBadge(recBadgeEl, 0);
+    recIntervalId = setInterval(() => {
+      const secs = Math.floor((Date.now() - recStartTs) / 1000);
+      updateRecBadge(recBadgeEl, secs);
+    }, 1000);
+  }
+
+  function stopRecording() {
+    if (!currentRecorder) return;
+    try {
+      currentRecorder.stop();
+    } catch (e) {
+      console.warn('stop failed', e);
+      currentRecorder = null;
+    }
+  }
+
+  // click handler aggregator (document-level to capture dynamic .board-cell)
+  document.addEventListener('click', function (ev) {
+    const slot = findSlotElement(ev.target);
+    if (!slot) return;
+
+    // if switching slot reset counter
+    if (lastClickedSlot && slot !== lastClickedSlot) {
+      clickCount = 0;
+      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+    }
+
+    lastClickedSlot = slot;
+    clickCount++;
+
+    if (clickTimer) clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => {
+      // evaluate clicks
+      const count = clickCount;
+      clickCount = 0;
+      clickTimer = null;
+
+      if (count === 1) {
+        // single click => enter fullscreen
+        enterFullscreenElement(slot);
+      } else if (count === 2) {
+        // double click => exit fullscreen + stop recording if active
+        if (currentRecorder) stopRecording();
+        exitFullscreenElement();
+      } else if (count >= 3) {
+        // triple-click (or more) => start recording (if none in progress)
+        if (!currentRecorder) {
+          startRecording(slot);
+        } else {
+          // if recording is already active, inform user
+          alert('Un enregistrement est déjà en cours.');
+        }
+      }
+    }, CLICK_WINDOW_MS);
+  }, true);
+
+  // Also support dblclick as explicit quit/stop (some browsers may trigger dblclick)
+  document.addEventListener('dblclick', function (ev) {
+    const slot = findSlotElement(ev.target);
+    if (!slot) return;
+    // Cancel any pending single-click timer to avoid re-entering
+    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; clickCount = 0; }
+    if (currentRecorder) stopRecording();
+    exitFullscreenElement();
+  }, true);
+
+  // Escape key to exit fullscreen and stop recording
+  window.addEventListener('keyup', function (e) {
+    if (e.key === 'Escape') {
+      if (currentRecorder) stopRecording();
+      exitFullscreenElement();
+    }
+  }, true);
+
+  // On fullscreenchange: if exiting, remove fallback classes maybe
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      // nothing more special: badge removal is handled when recording stops
+      // focus back to first slot for accessibility
+      try {
+        const first = document.querySelector('#player1Video, #player2Video, #moderatorVideo');
+        if (first) first.focus({ preventScroll: true });
+      } catch (e) {}
+    }
+  });
+
+})();
+</script>
+
+</body>        
+</html>
