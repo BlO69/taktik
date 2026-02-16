@@ -1367,7 +1367,10 @@ exposeGameStateToWindow();
       if (!state.lastRoundWinnerId && state.winnerId) {
         state.lastRoundWinnerId = state.winnerId;
       }
-
+     // Si le RPC renvoie un gagnant de party (fallback utile), l'utiliser pour initialiser lastRoundWinnerId
+     // (Note : party_winner ≠ dernier round winner, mais cela peut servir de fallback si le client ne l'a pas)
+     state.lastRoundWinnerId = finalizeRow.party_winner ?? state.lastRoundWinnerId;
+      
       // --- NEW: if server created a new game, reset local board/state immediately for THIS client ---
       const newGameId = finalizeRow.new_game_id ?? null;
       if (newGameId) {
@@ -1415,8 +1418,7 @@ exposeGameStateToWindow();
           party_owner_wins: state.party_owner_wins,
           party_opponent_wins: state.party_opponent_wins,
           new_game_id: finalizeRow.new_game_id ?? null,
-          last_round_winner: finalizeRow.last_round_winner ?? state.lastRoundWinnerId ?? null
-        });
+          last_round_winner: state.lastRoundWinnerId ?? null        });
       }
 
       // Make sure party poller knows about the new game immediately (helps other clients detect it)
