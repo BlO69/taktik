@@ -441,40 +441,75 @@ function spectatorMaySubscribe(pub, participant) {
   if (!['video', 'audio'].includes(kind)) return false;
 
   const gs = getGameState();
-  try {
-    // 1) d'abord essayer avec l'objet participant fourni
-    let slot = null;
-    try {
-      slot = participantToSlotIdentity(participant, gs);
-    } catch (e) {
-      // ignore
-    }
 
-    // 2) si pas de participant, essayer d'inférer à partir de la publication (participantSid / participantIdentity / owner metadata)
-    if (!slot && pub) {
+  try {
+    // --- 1) résolution safe de l'identité locale ---
+    const localIdent = normalizeIdentity(liveRoom?.localParticipant?.identity ?? liveRoom?.localParticipant?.sid ?? '');
+    const normOwner = normalizeIdentity(gs?.owner_id ?? gs?.ownerId ?? gs?.owner ?? '');
+    const normOpponent = normalizeIdentity(gs?.opponent_id ?? gs?.opponentId ?? gs?.opponent ?? '');
+    // role exposé depuis connectAndJoin (fallback 'spectateur' si absent)
+    const localRoleFromToken = (window.__livekit_role || 'spectateur').toLowerCase?.() ?? 'spectateur';
+
+    // --- 2) déterminer le "slot" du publisher (pubSlot) de façon robuste ---
+    let pubSlot = null;
+    try {
+      pubSlot = participantToSlotIdentity(participant, gs);
+    } catch (e) { /* ignore */ }
+
+    // fallback si participantToSlotIdentity n'est pas concluant : essayer via pub metadata
+    if (!pubSlot && pub) {
       const pubOwnerIdent = normalizeIdentity(pub.participantSid ?? pub.participantIdentity ?? pub.owner ?? pub.publisher ?? '');
       if (pubOwnerIdent) {
-        const normOwner = normalizeIdentity(gs?.owner_id ?? gs?.ownerId ?? gs?.owner ?? '');
-        const normOpponent = normalizeIdentity(gs?.opponent_id ?? gs?.opponentId ?? gs?.opponent ?? '');
-        if (pubOwnerIdent === normOwner) slot = 'owner';
-        else if (pubOwnerIdent === normOpponent) slot = 'opponent';
+        if (pubOwnerIdent === normOwner) pubSlot = 'owner';
+        else if (pubOwnerIdent === normOpponent) pubSlot = 'opponent';
+        else pubSlot = 'moderator';
       }
     }
 
-    // Always allow owner/opponent/moderator publications (video or audio)
-    if (['owner', 'opponent', 'moderator'].includes(slot)) return true;
+    // --- 3) déterminer le rôle/slot local de façon fiable ---
+    // priorité 1 : si token indique un rôle non-spectateur, on fait confiance à token (animateur, spectateur, etc.)
+    let localSlot = null;
+    if (localRoleFromToken && localRoleFromToken !== 'spectateur') {
+      // normaliser token -> map to slot names used elsewhere
+      if (localRoleFromToken === 'owner' || localRoleFromToken === 'joueur' || localRoleFromToken === 'player') localSlot = 'owner';
+      else if (localRoleFromToken === 'opponent' || localRoleFromToken === 'adversaire') localSlot = 'opponent';
+      else if (localRoleFromToken === 'moderator' || localRoleFromToken === 'animateur') localSlot = 'moderator';
+    }
+
+    // priorité 2 : si token absent/ambigu, comparer l'identité au gameState owner/opponent
+    if (!localSlot && localIdent) {
+      if (localIdent === normOwner) localSlot = 'owner';
+      else if (localIdent === normOpponent) localSlot = 'opponent';
+    }
+
+    // priorité 3 : fallback sur participantToSlotIdentity(local) (peut renvoyer 'moderator' par défaut)
+    if (!localSlot && liveRoom?.localParticipant) {
+      try {
+        localSlot = participantToSlotIdentity(liveRoom.localParticipant, gs);
+      } catch (e) { /* ignore */ }
+    }
+
+    // --- 4) règle principale : si BOTH localSlot et pubSlot sont dans [owner,opponent,moderator] => allow
+    const privileged = ['owner', 'opponent', 'moderator'];
+    if (privileged.includes(localSlot) && privileged.includes(pubSlot)) {
+      // owner/opponent/moderator must always be able to see each other
+      return true;
+    }
+
+    // --- 5) fallback existing logic: if publication explicitly maps to owner/opponent/moderator, allow ---
+    if (['owner', 'opponent', 'moderator'].includes(pubSlot)) return true;
+
   } catch (e) {
-    dbgWarn('spectatorMaySubscribe: participantToSlotIdentity failed', e);
+    dbgWarn('spectatorMaySubscribe: resolution failed', e);
   }
 
-  // For audio: always allow (so spectators can hear everyone)
+  // audio always allowed
   if (kind === 'audio') return true;
 
-  // For video: enforce the 3-video-subscription limit
+  // standard spectator video limit
   if (subscribedVideoCount < 3) return true;
   return false;
 }
-
 
 /** Try to disable subscription on a publication using multiple API variants */
 async function disableSubscriptionOnPub(pub) {
@@ -747,6 +782,10 @@ async function connectAndJoin(roomName, identity, gameId) {
   const token = tokenResp?.token || tokenResp?.accessToken || tokenResp?.access_token;
   const urlStr = tokenResp?.livekit_url || tokenResp?.url || tokenResp?.liveKitUrl;
   const role = (tokenResp?.role || tokenResp?.app?.role || 'spectateur').toLowerCase?.() ?? 'spectateur';
+  // expose le rôle local pour la logique de subscription côté client
+window.__livekit_role = role;
+dbgLog('window.__livekit_role set to', role);
+
   if (!token || !urlStr) {
     dbgError('token or livekit_url missing in token response', tokenResp);
     throw new Error('token or livekit_url missing in response');
