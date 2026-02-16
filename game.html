@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Taktik — Partie</title>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --cell-size: 48px; }
+
+    #boardGrid {
+      display: grid;
+      grid-template-columns: repeat(20, var(--cell-size));
+      padding: 6px;
+      background: transparent;
+    }
+
+    .board-cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.03);
+      border: 1px solid rgba(2, 6, 23, 0.06);
+      position: relative;
+      overflow: hidden;
+      transition: background-color 160ms ease;
+    }
+
+    .board-cell img.piece-img {
+      width: 92%;
+      height: 92%;
+      object-fit: contain;
+      pointer-events: none;
+      display: block;
+    }
+
+    .board-cell.piece-x {
+      background-color: #fee2e2;
+    }
+    .board-cell.piece-o {
+      background-color: #fff7cc;
+    }
+
+    .board-cell.piece-x.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }
+    .board-cell.piece-o.background-img { background-repeat: no-repeat; background-position: center; background-size: 84%; }
+
+    .board-cell.aligned { animation: takt-align-pulse 900ms ease-in-out 3; z-index:2; transform-origin:center; }
+    @keyframes takt-align-pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+      50% { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,255,255,0.6); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .35rem .6rem;
+      border-radius: .5rem;
+      background: white;
+      box-shadow: 0 1px 2px rgba(2,6,23,0.06);
+      cursor: pointer;
+      border: 1px solid rgba(2,6,23,0.04);
+    }
+    .back-btn svg { width: 18px; height: 18px; }
+
+    /* video slot look */
+    .video-slot {
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      outline: none;
+    }
+    .video-slot .slot-label {
+      pointer-events: none;
+    }
+
+    /* Fullscreen / pseudo fullscreen styles */
+    :fullscreen, ::-webkit-full-screen {
+      background: #000;
+    }
+    .video-slot:fullscreen,
+    .video-slot:-webkit-full-screen {
+      width: 100vw !important;
+      height: 100vh !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* pseudo fullscreen overlay (fallback) */
+    .pseudo-fullscreen-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: rgba(0,0,0,0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    .pseudo-fullscreen-overlay .video-slot {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .pseudo-fullscreen-shadow {
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    html, body { width: 100%; overflow-x: hidden; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+  <main class="max-w-screen-xl mx-auto p-4">
+    <header class="flex items-center justify-between gap-4 mb-4">
+      <div class="flex items-center gap-3">
+        <button id="backBtn" class="back-btn" aria-label="Retour à la page précédente" title="Retour">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span class="text-sm font-medium">Retour</span>
+        </button>
+        <div class="font-semibold text-lg">Taktik — Aligner 5</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="menuGames" class="px-3 py-1 rounded bg-white shadow text-sm">Matchmaking</button>
+        <button id="newGameBtn" class="px-3 py-1 rounded bg-white shadow text-sm">Nouvelle partie</button>
+        <button id="modeToggle" class="px-3 py-1 rounded bg-white shadow text-sm">Changer mode</button>
+      </div>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <article id="videoCardPlayer1" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="player1Video" class="video-slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm pseudo-slot pseudo-slot-player" tabindex="0" role="button" aria-label="Agrandir Player 1" title="Clique pour plein écran (double-clic pour quitter)">
+          <div class="slot-content">
+            Player 1 (vidéo)
+          </div>
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="player1_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="player1_pseudo" class="font-semibold">Invite</div>
+              <div id="player1_role" class="text-xs text-slate-500">Joueur 1</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="player1_elo">—</span></div>
+            <div>Division: <span id="player1_div">—</span></div>
+            <div>Followers: <span id="player1_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article id="videoCardPlayer2" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="player2Video" class="video-slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm pseudo-slot pseudo-slot-opponent" tabindex="0" role="button" aria-label="Agrandir Player 2" title="Clique pour plein écran (double-clic pour quitter)">
+          <div class="slot-content">Player 2 (vidéo)</div>
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="player2_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="player2_pseudo" class="font-semibold">Invite</div>
+              <div id="player2_role" class="text-xs text-slate-500">Joueur 2</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="player2_elo">—</span></div>
+            <div>Division: <span id="player2_div">—</span></div>
+            <div>Followers: <span id="player2_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article id="videoCardMod" class="bg-white rounded-lg shadow p-3 flex flex-col">
+        <div id="moderatorVideo" class="video-slot bg-slate-900 rounded-md h-28 flex items-center justify-center text-slate-300 text-sm pseudo-slot-moderator" tabindex="0" role="button" aria-label="Agrandir Animateur" title="Clique pour plein écran (double-clic pour quitter)">
+          <div class="slot-content">Animateur (vidéo)</div>
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img id="mod_avatar" class="w-12 h-12 rounded-full bg-slate-200 object-cover" src="" alt="avatar">
+            <div class="text-sm">
+              <div id="mod_pseudo" class="font-semibold">Animateur</div>
+              <div class="text-xs text-slate-500">Rôle: Animateur</div>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div>ELO: <span id="mod_elo">—</span></div>
+            <div>Division: <span id="mod_div">—</span></div>
+            <div>Followers: <span id="mod_followers">—</span></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div class="flex items-center gap-4">
+            <div class="text-sm">Tour actuel: <span id="currentTurn" class="font-semibold">X</span></div>
+            <div class="flex gap-2 text-xs">
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches X: <span id="scoreX">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Manches O: <span id="scoreO">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries X: <span id="seriesX">0</span></div>
+              <div class="bg-slate-100 rounded px-2 py-1 font-semibold">Séries O: <span id="seriesO">0</span></div>
+            </div>
+          </div>
+          <div id="minimap" class="w-40 h-24 rounded bg-slate-800" title="Mini-map"></div>
+        </div>
+
+        <div id="boardViewport" class="overflow-auto border rounded p-2" style="max-height:56vh;">
+          <div id="boardGrid" class="mx-auto"></div>
+        </div>
+      </div>
+
+      <aside class="flex flex-col gap-4">
+        <div class="bg-white rounded-lg shadow p-3">
+          <div class="font-semibold text-sm">Informations</div>
+          <p class="text-xs text-slate-500 mt-2">Utilise la colonne de droite pour les sons. Le matchmaking s'ouvre via "Matchmaking".</p>
+        </div>
+
+        <div id="placeholderPanel" class="bg-white rounded-lg shadow p-3 min-h-[120px]">
+          <div>
+            <div id="placeholderTitle" class="font-semibold">Matchmaking</div>
+            <div id="placeholderText" class="text-xs text-slate-500 mt-2">Cherche des joueurs, invite-les ou réponds aux invitations.</div>
+          </div>
+        </div>
+
+        <div id="controlsArea" class="bg-white rounded-lg shadow p-3">
+          <div class="text-sm font-semibold">Contrôles</div>
+          <div class="text-xs text-slate-500 mt-2">Sons, punchlines et autres contrôles.</div>
+        </div>
+      </aside>
+    </section>
+
+  </main>
+
+  <!-- MAIN GAME MODULE (regroupe les scripts précédemment inline) -->
+  <script type="module" src="./maingame.js"></script>
+
+  <!-- live.js doit gérer les flux audio/vidéo (player1/player2/mod) -->
+  <script>
+    // Remplace par l'URL de ta Edge Function Supabase
+    window.LIVEKIT_TOKEN_ENDPOINT = 'https://mvkfawtnvahxqwcbcfkb.supabase.co/functions/v1/get_livekit_token';
+  </script>
+
+  <script type="module" src="./live.js"></script>
+
+  <!-- fab.js doit gérer le bouton flottant -->
+  <script src="./fab.js" defer></script>
+
+  <!-- module en charge de la logique online (garde comme avant) -->
+  <script type="module" src="./online.js"></script>
+
+  <!-- Script gérant click -> plein écran et double-clic -> sortie -->
+  <script>
+    (function () {
+      // éléments cibles
+      const SLOT_SELECTOR = '#player1Video, #player2Video, #moderatorVideo';
+      const slots = Array.from(document.querySelectorAll(SLOT_SELECTOR));
+
+      // stockage pour pseudo fullscreen fallback
+      let pseudoFs = null;
+      const originalPlace = new WeakMap();
+
+      function supportsFullscreenAPI() {
+        return !!(document.fullscreenEnabled ||
+                  document.webkitFullscreenEnabled ||
+                  document.msFullscreenEnabled);
+      }
+
+      async function enterNativeFullscreen(el) {
+        try {
+          if (el.requestFullscreen) {
+            await el.requestFullscreen({ navigationUI: 'hide' });
+          } else if (el.webkitRequestFullscreen) {
+            // Safari iOS / old webkit
+            el.webkitRequestFullscreen();
+          } else {
+            throw new Error('Fullscreen API not available on element');
+          }
+        } catch (err) {
+          console.warn('requestFullscreen failed:', err);
+        }
+      }
+
+      function enterPseudoFullscreen(el) {
+        // create overlay
+        if (pseudoFs) return; // déjà actif
+        const overlay = document.createElement('div');
+        overlay.className = 'pseudo-fullscreen-overlay';
+        overlay.tabIndex = -1;
+        overlay.setAttribute('aria-modal', 'true');
+
+        // wrap element in a shadow box to add shadow / rounding
+        const wrapper = document.createElement('div');
+        wrapper.className = 'pseudo-fullscreen-shadow';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.justifyContent = 'center';
+        wrapper.style.background = 'transparent';
+
+        // remember original parent and sibling to restore later
+        const parent = el.parentNode;
+        const next = el.nextSibling;
+        originalPlace.set(overlay, { parent, next });
+
+        // move element into wrapper -> overlay
+        wrapper.appendChild(el);
+        overlay.appendChild(wrapper);
+        document.body.appendChild(overlay);
+        pseudoFs = overlay;
+
+        // prevent body scroll
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function exitPseudoFullscreen() {
+        if (!pseudoFs) return;
+        const overlay = pseudoFs;
+        const info = originalPlace.get(overlay);
+        if (info) {
+          // the moved element is inside overlay.querySelector('.pseudo-fullscreen-shadow') -> firstChild
+          const wrapper = overlay.querySelector('.pseudo-fullscreen-shadow');
+          if (wrapper && wrapper.firstChild) {
+            const el = wrapper.firstChild;
+            // restore to original place
+            if (info.next && info.next.parentNode === info.parent) {
+              info.parent.insertBefore(el, info.next);
+            } else {
+              info.parent.appendChild(el);
+            }
+          }
+        }
+        overlay.remove();
+        pseudoFs = null;
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+      }
+
+      // toggle function when single-clicked
+      function handleSlotClick(el) {
+        // if already native fullscreen with some element, ignore single click
+        if (document.fullscreenElement) return;
+
+        if (supportsFullscreenAPI()) {
+          enterNativeFullscreen(el);
+        } else {
+          enterPseudoFullscreen(el);
+        }
+      }
+
+      // double click to exit
+      function handleSlotDblClick(el) {
+        if (document.fullscreenElement) {
+          // if the fullscreen element is a descendant of the slot, exit
+          try {
+            document.exitFullscreen?.();
+            if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          } catch (e) {
+            console.warn('exitFullscreen failed', e);
+          }
+        } else if (pseudoFs) {
+          // check if the clicked element is inside pseudoFs
+          exitPseudoFullscreen();
+        }
+      }
+
+      // keyboard support: Enter/Space to open, Esc anywhere to close
+      function handleKeyDown(e, el) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleSlotClick(el);
+        }
+      }
+
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape') {
+          // exit native fullscreen or pseudo
+          if (document.fullscreenElement) {
+            try { document.exitFullscreen?.(); } catch(e){/*ignore*/ }
+          } else if (pseudoFs) {
+            exitPseudoFullscreen();
+          }
+        }
+      });
+
+      // When native fullscreen changes, we can add a class or do housekeeping
+      document.addEventListener('fullscreenchange', () => {
+        // nothing heavy, but useful for debugging or styling
+        // if needed, add a class to the fullscreen element:
+        // const fsEl = document.fullscreenElement;
+      });
+
+      // attach listeners to slots
+      slots.forEach((slot) => {
+        // click => enter fullscreen (single click)
+        slot.addEventListener('click', (e) => {
+          // ignore clicks originating from interactive controls (if any)
+          handleSlotClick(slot);
+        });
+
+        // double click => exit fullscreen
+        slot.addEventListener('dblclick', (e) => {
+          handleSlotDblClick(slot);
+        });
+
+        // keyboard activation
+        slot.addEventListener('keydown', (e) => handleKeyDown(e, slot));
+      });
+
+      // Safety: if user exits native fullscreen via ESC or other, ensure any pseudo state is cleaned
+      document.addEventListener('fullscreenerror', () => {
+        if (pseudoFs) exitPseudoFullscreen();
+      });
+
+      // click on overlay should also allow double-click to exit
+      // observe overlay clicks via delegation
+      document.body.addEventListener('dblclick', (e) => {
+        // if double click happens on overlay, exit too
+        if (pseudoFs && pseudoFs.contains(e.target)) {
+          exitPseudoFullscreen();
+        }
+      });
+
+    })();
+  </script>
+</body>
+</html>
