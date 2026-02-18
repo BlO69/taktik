@@ -1,6 +1,7 @@
 // create_game.js — basé sur l'original create_event.js (patché, hardené et avec fallback polling)
 // Usage: import initCreateGame from './create_game.js'; initCreateGame(window.supabase);
 // or <script type="module" src="./create_game.js"></script> then initCreateGame(supabaseClient);
+import { attachFollowToAvatar } from './follow.js';
 
 export default async function initCreateGame(supabaseClient) {
   const supabase = supabaseClient ?? window.supabase;
@@ -89,7 +90,9 @@ export default async function initCreateGame(supabaseClient) {
       avatar.style.borderRadius = '50%';
       avatar.style.marginRight = '8px';
       left.appendChild(avatar);
-
+// après left.appendChild(avatar);
+attachFollowToAvatar(avatar, p.id, { supabase });
+      
       const info = document.createElement('div');
       const pseudo = document.createElement('div');
       pseudo.textContent = p.pseudo || '(no pseudo)';
