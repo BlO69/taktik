@@ -1892,12 +1892,35 @@ async function joinNewGame(newGameId, starterChar = null) {
     channels = channels.filter(ch => !(ch && ch._topic && String(ch._topic).startsWith('game:')));
 
     // reset local minimal state (ready to join new game)
-    state.board = {};
-    state.moveCount = 0;
-    state.lastMoveIndex = 0;
-    state.status = 'playing';
-    state.winnerPseudo = null;
-    state.winnerId = null;
+    // === PATCH: reset local board/UI, remove blocking modals and force a quick resync ===
+state.board = {};                // reset board first
+state.moveCount = 0;
+state.lastMoveIndex = 0;
+state.status = 'playing';
+state.winnerPseudo = null;
+state.winnerId = null;
+
+try {
+  // remove any outcome/new-round/series modals that could block interaction
+  const om = document.getElementById('taktik-outcome-modal');
+  if (om) om.remove();
+  const nm = document.getElementById('taktik-new-round-modal');
+  if (nm) nm.remove();
+  const sm = document.getElementById('taktik-series-modal');
+  if (sm) sm.remove();
+} catch (e) {
+  dbgLog('joinNewGame modal cleanup failed', e);
+}
+
+// re-render empty board & update turn UI so player (perdant compris) voit l'écran prêt
+try { renderBoard(state.board); } catch (e) { dbgLog('renderBoard in joinNewGame failed', e); }
+try { updateTurnUI(); } catch (e) { dbgLog('updateTurnUI in joinNewGame failed', e); }
+
+// ensure scores/subscriptions are up-to-date — keep await so client shows immediate correct score
+try { await setupScoreSubscriptions(); } catch (e) { dbgLog('post-join setupScoreSubscriptions failed', e); }
+
+// quick authoritative fetch to avoid realtime/poll race conditions
+try { await pollGameOnce(); } catch (e) { dbgLog('pollGameOnce in joinNewGame failed', e); }
     // recompute playerChar in case user/player ids changed
     state.playerChar = computePlayerChar(state.userId);
 
