@@ -1307,13 +1307,7 @@ if (!state.lastPartyKnownGameId) {
   // Do NOT initialize to latest.id here — otherwise if latest.id is already the new game
   // we would silently mark it as "known" and miss handling it below.
   state.lastPartyKnownGameId = String(gameId ?? '');
-}
-      
-// After we've processed/consumed `latest` (i.e. handled the new game), persist the canonical id:
-// use the canonical id returned by the poll (latest.id). fallback to outer gameId only if missing.
-state.lastPartyKnownGameId = String((latest && latest.id) ?? gameId ?? '');
-
-      
+}    
       if (String(latest.id) !== String(gameId) && String(latest.id) !== String(state.lastPartyKnownGameId)) {
         dbgLog('pollPartyNewGameOnce detected new game', latest.id);
         // fetch the full game row to pass to handler
