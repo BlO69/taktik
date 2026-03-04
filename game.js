@@ -1324,7 +1324,6 @@ if (!tryMarkModalShown('newRoundShownForGameId', g.id) && !amLocalWinner) {
     series_winner: state.series_winner,
     new_game_id: g.id
   });
-} catch (e) {
   dbgLog('auto-join + showNewRoundModal block failed', e);
 }
     if (state.series_winner && String(state.seriesFinishedShownForSeriesId) !== String(state.series_id)) {
