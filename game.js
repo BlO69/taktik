@@ -3357,7 +3357,6 @@ if (state._pendingSeriesModal && state._pendingSeriesModal.length) {
     }
   }
   state._pendingSeriesModal = [];
-}
   if (state._pendingNewRoundModal && state._pendingNewRoundModal.length) {
   for (const item of state._pendingNewRoundModal) {
     try {
