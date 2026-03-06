@@ -3,7 +3,7 @@
 // Ajout : polling fallback pour détecter NEW GAME dans la même party sans realtime
 export default async function initGame(supabaseClient) {
   const supabase = supabaseClient ?? window.supabase;
-  const dbg = true;
+  const dbg = false;
   function dbgLog(...a){ if(dbg) alert('DBG game.js: ' + a.map(x => JSON.stringify(x)).join(' ')); }
   function info(msg){ console.info('game.js:', msg); }
   function warn(msg){ console.warn('game.js:', msg); }
