@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vérification d'identité — taktik</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+  <style>
+    :root {
+      --sky:    #0ea5e9;
+      --indigo: #6366f1;
+      --slate:  #1e293b;
+    }
+    html, body { height: 100%; }
+    body { -webkit-font-smoothing: antialiased; }
+
+    .glass {
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+      border: 1px solid rgba(0,0,0,0.07);
+      backdrop-filter: blur(6px);
+    }
+
+    /* Étapes */
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+
+    /* Upload zones */
+    .upload-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .upload-zone:hover { border-color: var(--sky); background: #f0f9ff; }
+    .upload-zone.has-file { border-color: #22c55e; background: #f0fdf4; }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      height: 4px;
+      background: linear-gradient(90deg, var(--sky), var(--indigo));
+      border-radius: 2px;
+      transition: width .4s ease;
+    }
+
+    /* Focus ring */
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+      border-color: var(--indigo) !important;
+    }
+
+    /* Step indicator dot */
+    .step-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      transition: all .3s;
+    }
+    .step-dot.done    { background: #22c55e; color: #fff; }
+    .step-dot.active  { background: var(--indigo); color: #fff; }
+    .step-dot.pending { background: #e2e8f0; color: #94a3b8; }
+
+    @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .step-panel.active { animation: fadein .25s ease; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin .7s linear infinite; }
+
+    /* Admin */
+    .admin-filter-btn.active-filter { background:#fff; color:#1e293b; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .kyc-card { transition: box-shadow .2s; }
+    .kyc-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+    .status-badge { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+    .status-pending      { background:#fef9c3; color:#a16207; }
+    .status-under_review { background:#ede9fe; color:#5b21b6; }
+    .status-verified     { background:#dcfce7; color:#15803d; }
+    .status-rejected     { background:#fee2e2; color:#b91c1c; }
+    #kycModal { animation: fadein .2s ease; }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-slate-800 antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-8" id="pageWrap">
+
+    <!-- En-tête -->
+    <header class="flex items-center gap-4 mb-8">
+      <a href="index.html" class="flex items-center gap-3 group">
+        <img src="logo.png" alt="taktik" class="w-10 h-10 rounded-lg bg-white/5 p-1.5 object-contain" />
+        <span class="text-xl font-extrabold text-sky-600 group-hover:text-sky-500 transition-colors">taktik</span>
+      </a>
+      <div class="ml-auto">
+        <a href="index.html" class="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-left text-xs"></i> Retour
+        </a>
+      </div>
+    </header>
+
+    <!-- Onglets (visibles uniquement si admin) -->
+    <div id="adminTabs" class="hidden mb-6 flex gap-2 border-b border-slate-200">
+      <button id="tabUser" onclick="switchTab('user')"
+        class="tab-btn px-5 py-2.5 text-sm font-semibold border-b-2 border-sky-500 text-sky-600 -mb-px transition-colors">
+        <i class="fa-solid fa-user mr-1.5"></i> Mon KYC
+      </button>
+      <button id="tabAdmin" onclick="switchTab('admin')"
+        class="tab-btn px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">
+        <i class="fa-solid fa-shield-halved mr-1.5"></i> Administration
+        <span id="adminBadge" class="hidden ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5
+          text-xs font-bold rounded-full bg-red-500 text-white leading-none">0</span>
+      </button>
+    </div>
+
+    <!-- Titre -->
+    <div class="mb-6" id="userTabTitle">
+      <h1 class="text-2xl font-bold text-slate-800">Vérification d'identité</h1>
+      <p class="text-slate-500 text-sm mt-1">Complétez les 4 étapes pour débloquer les retraits Tiks.</p>
+    </div>
+
+    <!-- Barre de progression -->
+    <div class="mb-6" id="progressWrap">
+      <div class="flex items-center justify-between mb-3">
+        <!-- Dots -->
+        <div class="flex items-center gap-2 w-full">
+          <div id="dot1" class="step-dot active">1</div>
+          <div class="flex-1 h-0.5 bg-slate-200" id="line1"></div>
+          <div id="dot2" class="step-dot pending">2</div>
+          <div class="flex-1 h-0.5 bg-slate-200" id="line2"></div>
+          <div id="dot3" class="step-dot pending">3</div>
+          <div class="flex-1 h-0.5 bg-slate-200" id="line3"></div>
+          <div id="dot4" class="step-dot pending">4</div>
+        </div>
+      </div>
+      <div class="bg-slate-100 rounded-full h-1">
+        <div class="progress-bar" id="progressBar" style="width:0%"></div>
+      </div>
+      <div class="flex justify-between text-xs text-slate-400 mt-1">
+        <span>Identité</span><span>Document</span><span>Selfie</span><span>Adresse</span>
+      </div>
+    </div>
+
+    <!-- Message global (erreur / succès) -->
+    <div id="globalMsg" class="hidden mb-4 p-3 rounded-lg text-sm font-medium"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 1 — Identité                                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step1" class="step-panel active glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-user text-sky-500"></i> Informations personnelles
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Entrez vos informations telles qu'elles apparaissent sur votre document officiel.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nom complet <span class="text-red-500">*</span></label>
+          <input id="fullName" type="text" placeholder="Jean Dupont"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Date de naissance <span class="text-red-500">*</span></label>
+            <input id="birthDate" type="date"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nationalité</label>
+            <input id="nationality" type="text" placeholder="Haïtienne"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button onclick="goStep(2)" class="px-6 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+          Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 2 — Document                                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step2" class="step-panel glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-id-card text-indigo-500"></i> Document d'identité
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Téléversez une photo nette et lisible de votre document.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Type de document <span class="text-red-500">*</span></label>
+          <select id="documentType"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm">
+            <option value="national_id">Carte Nationale d'Identité</option>
+            <option value="passport">Passeport</option>
+            <option value="driver_license">Permis de conduire</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Numéro du document <span class="text-red-500">*</span></label>
+          <input id="documentNumber" type="text" placeholder="Ex : 0012-3456-7"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Recto <span class="text-red-500">*</span></label>
+            <div class="upload-zone" id="zoneFront">
+              <input type="file" id="fileFront" accept="image/*,.pdf" onchange="previewUpload('fileFront','zoneFront','previewFront')" />
+              <div id="previewFront">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-2 block"></i>
+                <div class="text-sm text-slate-500">Cliquez ou glissez</div>
+                <div class="text-xs text-slate-400 mt-0.5">JPG, PNG, PDF — max 5MB</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Verso</label>
+            <div class="upload-zone" id="zoneBack">
+              <input type="file" id="fileBack" accept="image/*,.pdf" onchange="previewUpload('fileBack','zoneBack','previewBack')" />
+              <div id="previewBack">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-2 block"></i>
+                <div class="text-sm text-slate-500">Cliquez ou glissez</div>
+                <div class="text-xs text-slate-400 mt-0.5">Optionnel pour passeport</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-between">
+        <button onclick="goStep(1)" class="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors">
+          <i class="fa-solid fa-arrow-left mr-1"></i> Retour
+        </button>
+        <button onclick="goStep(3)" class="px-6 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+          Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 3 — Selfie                                       -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step3" class="step-panel glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-camera text-purple-500"></i> Selfie de vérification
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Prenez une photo de vous tenant votre document d'identité.</p>
+
+      <!-- Conseils -->
+      <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5">
+        <div class="text-sm font-semibold text-indigo-700 mb-2">📸 Conseils pour un bon selfie</div>
+        <ul class="text-xs text-indigo-600 space-y-1 list-none">
+          <li>✅ Visage clairement visible, sans lunettes de soleil</li>
+          <li>✅ Document lisible tenu à la main</li>
+          <li>✅ Bonne luminosité, pas de contre-jour</li>
+          <li>❌ Pas de photo de photo ni de scan</li>
+        </ul>
+      </div>
+
+      <div class="upload-zone" id="zoneSelfie">
+        <input type="file" id="fileSelfie" accept="image/*" capture="user"
+          onchange="previewUpload('fileSelfie','zoneSelfie','previewSelfie')" />
+        <div id="previewSelfie">
+          <i class="fa-solid fa-face-smile text-3xl text-slate-300 mb-2 block"></i>
+          <div class="text-sm text-slate-500 font-medium">Prendre un selfie ou téléverser</div>
+          <div class="text-xs text-slate-400 mt-1">JPG ou PNG — max 5MB</div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-between">
+        <button onclick="goStep(2)" class="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors">
+          <i class="fa-solid fa-arrow-left mr-1"></i> Retour
+        </button>
+        <button onclick="goStep(4)" class="px-6 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+          Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 4 — Adresse + soumission                         -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step4" class="step-panel glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-location-dot text-emerald-500"></i> Adresse
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Renseignez votre adresse de résidence actuelle.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Adresse (ligne 1)</label>
+          <input id="addressLine1" type="text" placeholder="Rue, numéro, appartement…"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Adresse (ligne 2)</label>
+          <input id="addressLine2" type="text" placeholder="Quartier, zone…"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Ville</label>
+            <input id="city" type="text" placeholder="Port-au-Prince"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Pays</label>
+            <input id="country" type="text" placeholder="Haïti"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Résumé avant soumission -->
+      <div id="summaryBox" class="mt-5 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm space-y-1 hidden">
+        <div class="font-semibold text-slate-700 mb-2">📋 Récapitulatif</div>
+        <div id="summaryContent" class="text-slate-600 space-y-0.5 text-xs"></div>
+      </div>
+
+      <!-- Consentement -->
+      <label class="flex items-start gap-3 mt-5 cursor-pointer">
+        <input id="consent" type="checkbox" class="mt-0.5 accent-indigo-600 w-4 h-4 flex-shrink-0" />
+        <span class="text-xs text-slate-600 leading-relaxed">
+          Je certifie que les informations fournies sont exactes et que les documents téléversés sont authentiques.
+          J'accepte que taktik traite ces données à des fins de vérification d'identité conformément à sa politique de confidentialité.
+        </span>
+      </label>
+
+      <div id="submitMsg" class="mt-3 text-sm min-h-5 font-medium"></div>
+
+      <div class="mt-5 flex justify-between items-center">
+        <button onclick="goStep(3)" class="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors">
+          <i class="fa-solid fa-arrow-left mr-1"></i> Retour
+        </button>
+        <button id="submitBtn" onclick="submitKYC()"
+          class="px-7 py-2.5 rounded-lg font-semibold text-sm text-white transition-all
+                 bg-gradient-to-r from-sky-500 to-indigo-500 hover:opacity-90">
+          <i class="fa-solid fa-paper-plane mr-1.5"></i> Soumettre le KYC
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 5 — Confirmation                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step5" class="step-panel glass rounded-2xl p-8 text-center">
+      <div class="text-6xl mb-4">🎉</div>
+      <h2 class="text-2xl font-bold text-slate-800 mb-2">Demande envoyée !</h2>
+      <p class="text-slate-500 text-sm leading-relaxed mb-6">
+        Votre dossier KYC a été soumis avec succès.<br>
+        Notre équipe le vérifiera dans un délai de <strong>24 à 48 heures</strong>.<br>
+        Vous recevrez une notification dès que votre identité sera confirmée.
+      </p>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-700 mb-6 text-left">
+        <strong>Que se passe-t-il ensuite ?</strong><br>
+        1. Notre équipe examine vos documents<br>
+        2. Vous recevez une notification de vérification<br>
+        3. Les retraits Tiks sont débloqués sur votre compte
+      </div>
+      <a href="index.html"
+        class="inline-block px-8 py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+        <i class="fa-solid fa-house mr-1.5"></i> Retour à l'accueil
+      </a>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  Statut KYC existant (affiché si déjà soumis)          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="existingKYC" class="hidden glass rounded-2xl p-6 text-center">
+      <div id="existingIcon" class="text-5xl mb-3">⏳</div>
+      <h2 id="existingTitle" class="text-xl font-bold text-slate-800 mb-2">Demande en cours</h2>
+      <p id="existingText" class="text-slate-500 text-sm mb-5">Votre dossier est en cours d'examen.</p>
+      <a href="index.html" class="inline-block px-6 py-2.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold text-sm transition-colors">
+        Retour à l'accueil
+      </a>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  PANEL ADMIN — masqué par défaut                        -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="adminPanel" class="hidden">
+
+      <!-- Filtres -->
+      <div class="flex flex-wrap items-center gap-3 mb-5">
+        <div class="flex gap-1 bg-slate-100 rounded-lg p-1">
+          <button onclick="adminFilter('pending')"      id="fPending"      class="admin-filter-btn active-filter px-3 py-1.5 rounded-md text-xs font-semibold transition-colors">⏳ En attente</button>
+          <button onclick="adminFilter('under_review')" id="fUnder_review" class="admin-filter-btn px-3 py-1.5 rounded-md text-xs font-semibold text-slate-500 hover:bg-white transition-colors">🔍 En examen</button>
+          <button onclick="adminFilter('verified')"     id="fVerified"     class="admin-filter-btn px-3 py-1.5 rounded-md text-xs font-semibold text-slate-500 hover:bg-white transition-colors">✅ Vérifiés</button>
+          <button onclick="adminFilter('rejected')"     id="fRejected"     class="admin-filter-btn px-3 py-1.5 rounded-md text-xs font-semibold text-slate-500 hover:bg-white transition-colors">❌ Rejetés</button>
+          <button onclick="adminFilter('all')"          id="fAll"          class="admin-filter-btn px-3 py-1.5 rounded-md text-xs font-semibold text-slate-500 hover:bg-white transition-colors">Tous</button>
+        </div>
+        <button onclick="loadAdminKYC()" class="ml-auto px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-xs font-semibold text-slate-700 transition-colors">
+          <i class="fa-solid fa-rotate mr-1"></i> Actualiser
+        </button>
+      </div>
+
+      <!-- Liste des dossiers -->
+      <div id="adminKYCList">
+        <div class="text-center py-10 text-slate-400 text-sm">Chargement des dossiers…</div>
+      </div>
+
+      <!-- Modal détail KYC -->
+      <div id="kycModal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 pt-10"
+           style="background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+          <div class="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+            <h3 class="font-bold text-slate-800 text-lg" id="modalTitle">Dossier KYC</h3>
+            <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div id="modalBody" class="p-6 space-y-5"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /max-w-4xl -->
+
+<script type="module">
+/* ── Supabase client ── */
+let supabase = null;
+try {
+  const mod = await import('./supabaseClient.js');
+  supabase = mod.supabase;
+} catch (e) { console.warn('supabaseClient.js non trouvé', e); }
+
+/* ── Fichiers uploadés ── */
+window._kycFiles = { front: null, back: null, selfie: null };
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Upload dans Supabase Storage                              */
+/* ══════════════════════════════════════════════════════════ */
+async function uploadFile(file, folder, userId) {
+  if (!supabase || !file) return null;
+  const ext  = file.name.split('.').pop();
+  const path = `${userId}/${folder}_${Date.now()}.${ext}`;
+  const { data, error } = await supabase.storage
+    .from('kyc-documents')
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (error) { console.warn('Upload error', error); return null; }
+  const { data: urlData } = supabase.storage.from('kyc-documents').getPublicUrl(path);
+  return urlData?.publicUrl ?? null;
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Vérification de l'état KYC existant                      */
+/* ══════════════════════════════════════════════════════════ */
+async function checkExistingKYC() {
+  if (!supabase) return;
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const user = session?.session?.user;
+    if (!user) return; // pas connecté — laisse le formulaire visible
+
+    const { data: kyc } = await supabase
+      .from('kyc_profiles')
+      .select('status, is_verified, rejection_reason, submitted_at')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!kyc) return; // pas de KYC → montrer le formulaire
+
+    /* KYC déjà soumis → afficher le statut */
+    hideFormAndShowStatus(kyc);
+  } catch (e) { console.warn('checkExistingKYC error', e); }
+}
+
+function hideFormAndShowStatus(kyc) {
+  /* Cacher tout le formulaire */
+  ['step1','step2','step3','step4'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.querySelector('.mb-6')?.style?.setProperty('display','none'); // progress bar parent
+
+  /* Afficher le bloc statut */
+  const box = document.getElementById('existingKYC');
+  box.classList.remove('hidden');
+
+  const STATUS_MAP = {
+    pending:      { icon: '⏳', title: 'Demande en attente',     color: '#f59e0b', text: 'Votre dossier a été soumis et attend d\'être examiné.' },
+    under_review: { icon: '🔍', title: 'Demande en cours d\'examen', color: '#6366f1', text: 'Notre équipe examine actuellement vos documents.' },
+    verified:     { icon: '✅', title: 'Identité vérifiée !',    color: '#16a34a', text: 'Votre identité a été confirmée. Les retraits Tiks sont débloqués.' },
+    rejected:     { icon: '❌', title: 'Demande rejetée',         color: '#dc2626', text: kyc.rejection_reason ?? 'Votre demande a été rejetée. Vous pouvez soumettre une nouvelle demande.' },
+  };
+
+  const info = STATUS_MAP[kyc.status] ?? STATUS_MAP.pending;
+  document.getElementById('existingIcon').textContent  = info.icon;
+  document.getElementById('existingTitle').textContent = info.title;
+  document.getElementById('existingTitle').style.color = info.color;
+  document.getElementById('existingText').textContent  = info.text;
+
+  /* Si rejeté → bouton pour re-soumettre */
+  if (kyc.status === 'rejected') {
+    const btn = document.createElement('button');
+    btn.textContent = 'Soumettre une nouvelle demande';
+    btn.className = 'block mx-auto mt-3 px-6 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm transition-colors';
+    btn.onclick = () => location.reload();
+    document.getElementById('existingKYC').appendChild(btn);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Navigation entre étapes                                   */
+/* ══════════════════════════════════════════════════════════ */
+window.goStep = function(n) {
+  // Validation étape 1
+  if (n > 1) {
+    const name      = document.getElementById('fullName').value.trim();
+    const birthDate = document.getElementById('birthDate').value;
+    if (!name || !birthDate) { showMsg('Veuillez remplir le nom complet et la date de naissance.', 'red'); return; }
+  }
+  // Validation étape 2
+  if (n > 2) {
+    const docNum = document.getElementById('documentNumber').value.trim();
+    if (!docNum) { showMsg('Veuillez saisir le numéro de document.', 'red'); return; }
+    if (!window._kycFiles.front) { showMsg('Veuillez téléverser le recto du document.', 'red'); return; }
+  }
+
+  // Afficher récap avant soumission
+  if (n === 4) buildSummary();
+
+  clearMsg();
+
+  // Mise à jour des étapes
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById(`step${i}`)?.classList.toggle('active', i === n);
+    const dot = document.getElementById(`dot${i}`);
+    if (dot) {
+      dot.className = 'step-dot ' + (i < n ? 'done' : i === n ? 'active' : 'pending');
+      if (i < n) dot.innerHTML = '<i class="fa-solid fa-check text-xs"></i>';
+      else dot.textContent = i;
+    }
+  }
+
+  // Progression
+  const pct = ((n - 1) / 3) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+function buildSummary() {
+  const box  = document.getElementById('summaryBox');
+  const cont = document.getElementById('summaryContent');
+  const lines = [
+    ['Nom',      document.getElementById('fullName').value.trim()],
+    ['Naissance', document.getElementById('birthDate').value],
+    ['Nationalité', document.getElementById('nationality').value.trim() || '—'],
+    ['Document',  document.getElementById('documentType').options[document.getElementById('documentType').selectedIndex].text],
+    ['N° document', document.getElementById('documentNumber').value.trim()],
+    ['Recto',    window._kycFiles.front ? '✅ Fichier joint' : '—'],
+    ['Verso',    window._kycFiles.back  ? '✅ Fichier joint' : '—'],
+    ['Selfie',   window._kycFiles.selfie ? '✅ Fichier joint' : '—'],
+  ];
+  cont.innerHTML = lines.map(([k,v]) =>
+    `<div class="flex gap-2"><span class="font-medium text-slate-500 w-24 flex-shrink-0">${k} :</span><span>${v}</span></div>`
+  ).join('');
+  box.classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Preview upload                                            */
+/* ══════════════════════════════════════════════════════════ */
+window.previewUpload = function(inputId, zoneId, previewId) {
+  const input = document.getElementById(inputId);
+  const zone  = document.getElementById(zoneId);
+  const prev  = document.getElementById(previewId);
+  const file  = input.files?.[0];
+  if (!file) return;
+
+  // Stocker le fichier
+  if (inputId === 'fileFront')  window._kycFiles.front  = file;
+  if (inputId === 'fileBack')   window._kycFiles.back   = file;
+  if (inputId === 'fileSelfie') window._kycFiles.selfie = file;
+
+  zone.classList.add('has-file');
+
+  if (file.type.startsWith('image/')) {
+    const url = URL.createObjectURL(file);
+    prev.innerHTML = `
+      <img src="${url}" alt="preview" style="max-height:100px;object-fit:cover;border-radius:8px;margin:0 auto;" />
+      <div style="font-size:11px;color:#16a34a;margin-top:6px;font-weight:600;">✅ ${file.name}</div>`;
+  } else {
+    prev.innerHTML = `
+      <i class="fa-solid fa-file-pdf text-2xl text-red-400 mb-1 block"></i>
+      <div style="font-size:11px;color:#16a34a;font-weight:600;">✅ ${file.name}</div>`;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Soumission                                                */
+/* ══════════════════════════════════════════════════════════ */
+window.submitKYC = async function() {
+  const consent = document.getElementById('consent').checked;
+  if (!consent) { showMsg('Veuillez cocher la case de consentement.', 'red'); return; }
+
+  if (!supabase) { showMsg('Service indisponible — rechargez la page.', 'red'); return; }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData?.session?.user;
+  if (!user) { showMsg('Vous devez être connecté pour soumettre le KYC.', 'red'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full spin mr-2"></span>Envoi en cours…`;
+  clearMsg();
+
+  try {
+    /* 1. Upload des fichiers vers Storage */
+    showMsg('Téléversement des documents…', 'blue');
+    const [frontUrl, backUrl, selfieUrl] = await Promise.all([
+      uploadFile(window._kycFiles.front,  'front',  user.id),
+      uploadFile(window._kycFiles.back,   'back',   user.id),
+      uploadFile(window._kycFiles.selfie, 'selfie', user.id),
+    ]);
+
+    /* 2. Appel RPC rpc_submit_kyc */
+    showMsg('Enregistrement de votre dossier…', 'blue');
+    const { error: rpcErr } = await supabase.rpc('rpc_submit_kyc', {
+      p_full_name:          document.getElementById('fullName').value.trim(),
+      p_birth_date:         document.getElementById('birthDate').value,
+      p_nationality:        document.getElementById('nationality').value.trim() || null,
+      p_document_type:      document.getElementById('documentType').value,
+      p_document_number:    document.getElementById('documentNumber').value.trim(),
+      p_document_front_url: frontUrl,
+      p_document_back_url:  backUrl,
+      p_selfie_url:         selfieUrl,
+      p_address_line1:      document.getElementById('addressLine1').value.trim() || null,
+      p_address_line2:      document.getElementById('addressLine2').value.trim() || null,
+      p_city:               document.getElementById('city').value.trim() || null,
+      p_country:            document.getElementById('country').value.trim() || null,
+    });
+
+    if (rpcErr) throw new Error(rpcErr.message ?? 'Erreur lors de la soumission');
+
+    /* 3. Afficher la confirmation */
+    clearMsg();
+    for (let i = 1; i <= 4; i++) document.getElementById(`step${i}`)?.classList.remove('active');
+    document.getElementById('step5').classList.add('active');
+    document.getElementById('progressBar').style.width = '100%';
+    for (let i = 1; i <= 4; i++) {
+      const dot = document.getElementById(`dot${i}`);
+      if (dot) { dot.className = 'step-dot done'; dot.innerHTML = '<i class="fa-solid fa-check text-xs"></i>'; }
+    }
+
+  } catch (e) {
+    console.error('submitKYC error', e);
+    showMsg(`Erreur : ${e?.message ?? e}`, 'red');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1.5"></i> Réessayer';
+  }
+};
+
+/* ── Helpers messages ── */
+function showMsg(text, color = 'blue') {
+  const colors = {
+    red:  { bg: '#fef2f2', border: '#fecaca', text: '#dc2626' },
+    blue: { bg: '#eff6ff', border: '#bfdbfe', text: '#2563eb' },
+    green:{ bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a' },
+  };
+  const c = colors[color] ?? colors.blue;
+  const el = document.getElementById('submitMsg');
+  if (el) {
+    el.style.cssText = `background:${c.bg};border:1px solid ${c.border};color:${c.text};
+      padding:8px 12px;border-radius:8px;font-size:13px;`;
+    el.textContent = text;
+  }
+  // Message global aussi
+  const gm = document.getElementById('globalMsg');
+  if (gm && color === 'red') {
+    gm.style.cssText = `background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:10px 14px;border-radius:8px;`;
+    gm.textContent = text;
+    gm.classList.remove('hidden');
+    setTimeout(() => gm.classList.add('hidden'), 5000);
+  }
+}
+window.showMsg = showMsg;
+
+function clearMsg() {
+  const el = document.getElementById('submitMsg');
+  if (el) { el.textContent = ''; el.style.cssText = ''; }
+}
+window.clearMsg = clearMsg;
+
+/* ── Init ── */
+checkExistingKYC();
+checkAdminRole();
+document.getElementById('currentYear') && (document.getElementById('currentYear').textContent = new Date().getFullYear());
+
+/* ══════════════════════════════════════════════════════════ */
+/*  ADMIN — Vérification du rôle                             */
+/* ══════════════════════════════════════════════════════════ */
+async function checkAdminRole() {
+  if (!supabase) return;
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const user = sess?.session?.user;
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile?.role !== 'administrator') return;
+
+    /* Afficher les onglets */
+    document.getElementById('adminTabs').classList.remove('hidden');
+    /* Charger le badge compteur en arrière-plan */
+    loadAdminBadge();
+  } catch (e) { console.warn('checkAdminRole error', e); }
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  ADMIN — Onglets                                           */
+/* ══════════════════════════════════════════════════════════ */
+window.switchTab = function(tab) {
+  const isAdmin = tab === 'admin';
+
+  /* Onglet actif */
+  document.getElementById('tabUser').className  = `tab-btn px-5 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${!isAdmin ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`;
+  document.getElementById('tabAdmin').className = `tab-btn px-5 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${isAdmin  ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`;
+
+  /* Panneaux */
+  const userEls = ['userTabTitle','progressWrap','globalMsg',
+    'step1','step2','step3','step4','step5','existingKYC'];
+  userEls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isAdmin ? 'none' : '';
+  });
+  document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
+
+  if (isAdmin) loadAdminKYC();
+};
+
+/* ══════════════════════════════════════════════════════════ */
+/*  ADMIN — Badge compteur                                    */
+/* ══════════════════════════════════════════════════════════ */
+async function loadAdminBadge() {
+  if (!supabase) return;
+  try {
+    const { count } = await supabase
+      .from('kyc_profiles')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['pending', 'under_review']);
+    const badge = document.getElementById('adminBadge');
+    if (badge) {
+      if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+      else badge.classList.add('hidden');
+    }
+  } catch (e) { console.warn('loadAdminBadge error', e); }
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  ADMIN — État du filtre courant                            */
+/* ══════════════════════════════════════════════════════════ */
+window._adminCurrentFilter = 'pending';
+
+window.adminFilter = function(status) {
+  window._adminCurrentFilter = status;
+  document.querySelectorAll('.admin-filter-btn').forEach(b => b.classList.remove('active-filter'));
+  const btn = document.getElementById('f' + status.charAt(0).toUpperCase() + status.slice(1));
+  if (btn) btn.classList.add('active-filter');
+  loadAdminKYC();
+};
+
+/* ══════════════════════════════════════════════════════════ */
+/*  ADMIN — Chargement de la liste                            */
+/* ══════════════════════════════════════════════════════════ */
+window.loadAdminKYC = async function() {
+  const list = document.getElementById('adminKYCList');
+  list.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm flex items-center justify-center gap-2">
+    <span class="inline-block w-4 h-4 border-2 border-slate-300 border-t-indigo-500 rounded-full spin"></span>
+    Chargement…</div>`;
+
+  if (!supabase) { list.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Service indisponible.</div>'; return; }
+
+  try {
+    let query = supabase
+      .from('kyc_profiles')
+      .select(`
+        id, user_id, full_name, birth_date, nationality,
+        document_type, document_number,
+        document_front_url, document_back_url, selfie_url,
+        address_line1, address_line2, city, country,
+        status, is_verified, rejection_reason,
+        submitted_at, updated_at, verified_at
+      `)
+      .order('submitted_at', { ascending: false });
+
+    const f = window._adminCurrentFilter;
+    if (f !== 'all') query = query.eq('status', f);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      list.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">Aucun dossier pour ce filtre.</div>`;
+      return;
+    }
+
+    list.innerHTML = data.map(k => buildKYCCard(k)).join('');
+  } catch (e) {
+    console.error('loadAdminKYC error', e);
+    list.innerHTML = `<div class="text-center py-8 text-red-400 text-sm">Erreur : ${e.message}</div>`;
+  }
+};
+
+/* ── Carte résumé d'un dossier ── */
+function buildKYCCard(k) {
+  const statusLabel = { pending:'En attente', under_review:'En examen', verified:'Vérifié', rejected:'Rejeté' };
+  const submittedAt = k.submitted_at ? new Date(k.submitted_at).toLocaleString('fr-FR', {
+    day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+  }) : '—';
+
+  const docTypeLabel = { national_id:'CNI', passport:'Passeport', driver_license:'Permis' };
+
+  return `
+  <div class="kyc-card glass rounded-xl p-4 mb-3 flex flex-col sm:flex-row sm:items-center gap-4">
+    <!-- Selfie thumb -->
+    <div class="flex-shrink-0">
+      ${k.selfie_url
+        ? `<img src="${k.selfie_url}" alt="selfie" class="w-14 h-14 rounded-full object-cover border-2 border-slate-200" />`
+        : `<div class="w-14 h-14 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center text-2xl">👤</div>`}
+    </div>
+
+    <!-- Infos -->
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-bold text-slate-800 text-sm truncate">${k.full_name ?? '—'}</span>
+        <span class="status-badge status-${k.status}">${statusLabel[k.status] ?? k.status}</span>
+      </div>
+      <div class="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+        <span><i class="fa-solid fa-id-card mr-1 text-slate-400"></i>${docTypeLabel[k.document_type] ?? k.document_type} · ${k.document_number ?? '—'}</span>
+        <span><i class="fa-solid fa-clock mr-1 text-slate-400"></i>${submittedAt}</span>
+        ${k.city ? `<span><i class="fa-solid fa-location-dot mr-1 text-slate-400"></i>${k.city}</span>` : ''}
+      </div>
+      ${k.rejection_reason ? `<div class="mt-1 text-xs text-red-500 italic">Motif : ${k.rejection_reason}</div>` : ''}
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="flex gap-2 flex-shrink-0">
+      <button onclick="openKYCModal('${k.id}')" data-kyc='${JSON.stringify(k).replace(/'/g,"&#39;")}'
+        class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition-colors">
+        <i class="fa-solid fa-eye mr-1"></i> Voir
+      </button>
+      ${k.status !== 'verified' ? `
+      <button onclick="quickVerify('${k.id}', true)"
+        class="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-xs font-semibold text-emerald-700 transition-colors border border-emerald-200">
+        <i class="fa-solid fa-check mr-1"></i> Approuver
+      </button>` : ''}
+      ${k.status !== 'rejected' ? `
+      <button onclick="promptReject('${k.id}')"
+        class="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-xs font-semibold text-red-600 transition-colors border border-red-200">
+        <i class="fa-solid fa-xmark mr-1"></i> Rejeter
+      </button>` : ''}
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  ADMIN — Modal détail                                      */
+/* ══════════════════════════════════════════════════════════ */
+window._kycModalData = {};
+
+window.openKYCModal = async function(kycId) {
+  /* Charger les données fraîches */
+  const modal = document.getElementById('kycModal');
+  const body  = document.getElementById('modalBody');
+  modal.classList.remove('hidden');
+  body.innerHTML = `<div class="text-center py-8 text-slate-400 flex items-center justify-center gap-2">
+    <span class="inline-block w-4 h-4 border-2 border-slate-300 border-t-indigo-500 rounded-full spin"></span> Chargement…</div>`;
+
+  try {
+    const { data: k, error } = await supabase
+      .from('kyc_profiles')
+      .select('*')
+      .eq('id', kycId)
+      .single();
+    if (error) throw error;
+    window._kycModalData[kycId] = k;
+    document.getElementById('modalTitle').textContent = `Dossier — ${k.full_name ?? kycId}`;
+
+    const docTypeLabel = { national_id:'Carte Nationale', passport:'Passeport', driver_license:'Permis de conduire' };
+    const statusLabel  = { pending:'En attente', under_review:'En examen', verified:'Vérifié', rejected:'Rejeté' };
+    const fmt = v => v ?? '<span class="text-slate-400 italic">—</span>';
+
+    body.innerHTML = `
+      <!-- Statut + actions -->
+      <div class="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="status-badge status-${k.status} text-sm px-3 py-1">${statusLabel[k.status]}</span>
+          ${k.verified_at ? `<span class="text-xs text-slate-400">Vérifié le ${new Date(k.verified_at).toLocaleDateString('fr-FR')}</span>` : ''}
+        </div>
+        <div class="flex gap-2">
+          ${k.status !== 'verified' ? `
+          <button onclick="quickVerify('${k.id}', true)" id="modalApproveBtn"
+            class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors">
+            <i class="fa-solid fa-check mr-1"></i> Approuver
+          </button>` : ''}
+          ${k.status !== 'rejected' ? `
+          <button onclick="promptReject('${k.id}')" id="modalRejectBtn"
+            class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors">
+            <i class="fa-solid fa-xmark mr-1"></i> Rejeter
+          </button>` : ''}
+          ${k.status === 'pending' ? `
+          <button onclick="setUnderReview('${k.id}')"
+            class="px-4 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-sm font-semibold transition-colors">
+            <i class="fa-solid fa-magnifying-glass mr-1"></i> Mettre en examen
+          </button>` : ''}
+        </div>
+      </div>
+
+      ${k.rejection_reason ? `
+      <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+        <strong>Motif de rejet :</strong> ${k.rejection_reason}
+      </div>` : ''}
+
+      <!-- Identité -->
+      <div>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">👤 Identité</div>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          ${infoRow('Nom complet', fmt(k.full_name))}
+          ${infoRow('Date de naissance', k.birth_date ? new Date(k.birth_date).toLocaleDateString('fr-FR') : '—')}
+          ${infoRow('Nationalité', fmt(k.nationality))}
+          ${infoRow('Soumis le', k.submitted_at ? new Date(k.submitted_at).toLocaleString('fr-FR') : '—')}
+        </div>
+      </div>
+
+      <!-- Document -->
+      <div>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">🪪 Document</div>
+        <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+          ${infoRow('Type', docTypeLabel[k.document_type] ?? k.document_type)}
+          ${infoRow('Numéro', fmt(k.document_number))}
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          ${docImg(k.document_front_url, 'Recto')}
+          ${docImg(k.document_back_url,  'Verso')}
+          ${docImg(k.selfie_url,         'Selfie')}
+        </div>
+      </div>
+
+      <!-- Adresse -->
+      <div>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">📍 Adresse</div>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          ${infoRow('Ligne 1', fmt(k.address_line1))}
+          ${infoRow('Ligne 2', fmt(k.address_line2))}
+          ${infoRow('Ville', fmt(k.city))}
+          ${infoRow('Pays', fmt(k.country))}
+        </div>
+      </div>
+
+      <div id="modalActionMsg" class="text-sm min-h-4"></div>
+    `;
+  } catch (e) {
+    body.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Erreur : ${e.message}</div>`;
+  }
+};
+
+function infoRow(label, value) {
+  return `<div class="bg-slate-50 rounded-lg px-3 py-2">
+    <div class="text-xs text-slate-400 mb-0.5">${label}</div>
+    <div class="font-medium text-slate-700">${value}</div>
+  </div>`;
+}
+function docImg(url, label) {
+  if (!url) return `<div class="bg-slate-50 rounded-lg p-3 text-center text-slate-400 text-xs border border-dashed border-slate-200">
+    <i class="fa-solid fa-image text-lg mb-1 block"></i>${label}<br><span class="text-slate-300">Non fourni</span></div>`;
+  return `<div class="rounded-lg overflow-hidden border border-slate-200">
+    <a href="${url}" target="_blank" title="Voir ${label}">
+      <img src="${url}" alt="${label}" class="w-full h-24 object-cover hover:opacity-90 transition-opacity" />
+    </a>
+    <div class="text-center text-xs text-slate-500 py-1 bg-slate-50">${label} <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs ml-1"></i></div>
+  </div>`;
+}
+
+window.closeModal = function() {
+  document.getElementById('kycModal').classList.add('hidden');
+};
+/* Fermer en cliquant sur le fond */
+document.getElementById('kycModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+/* ══════════════════════════════════════════════════════════ */
+/*  ADMIN — Actions Approuver / Rejeter / Mettre en examen   */
+/* ══════════════════════════════════════════════════════════ */
+async function adminVerifyKYC(kycId, approve, reason = null) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.rpc('rpc_admin_verify_kyc', {
+      p_kyc_id:          kycId,
+      p_approve:         approve,
+      p_rejection_reason: reason,
+    });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('adminVerifyKYC error', e);
+    alert(`Erreur : ${e.message}`);
+    return false;
+  }
+}
+
+window.quickVerify = async function(kycId, approve) {
+  const label = approve ? 'Approuver' : 'Rejeter';
+  if (!confirm(`${label} ce dossier KYC ?`)) return;
+  const ok = await adminVerifyKYC(kycId, approve);
+  if (ok) {
+    closeModal();
+    loadAdminKYC();
+    loadAdminBadge();
+  }
+};
+
+window.promptReject = function(kycId) {
+  /* Mini-formulaire inline dans le modal (ou hors modal) */
+  const reason = prompt('Motif de rejet (obligatoire) :');
+  if (reason === null) return; // annulé
+  if (!reason.trim()) { alert('Veuillez saisir un motif.'); return; }
+  adminVerifyKYC(kycId, false, reason.trim()).then(ok => {
+    if (ok) { closeModal(); loadAdminKYC(); loadAdminBadge(); }
+  });
+};
+
+window.setUnderReview = async function(kycId) {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase
+      .from('kyc_profiles')
+      .update({ status: 'under_review' })
+      .eq('id', kycId);
+    if (error) throw error;
+    closeModal();
+    loadAdminKYC();
+    loadAdminBadge();
+  } catch (e) { alert(`Erreur : ${e.message}`); }
+};
+
+</script>
+
+<footer class="mt-6 pb-6 text-center text-xs text-slate-400">
+  ©Taktik <span id="currentYear"></span> — Vos données sont protégées et chiffrées.
+</footer>
+
+</body>
+</html>
