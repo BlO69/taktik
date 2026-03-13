@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vérification d'identité — taktik</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+  <style>
+    :root {
+      --sky:    #0ea5e9;
+      --indigo: #6366f1;
+      --slate:  #1e293b;
+    }
+    html, body { height: 100%; }
+    body { -webkit-font-smoothing: antialiased; }
+
+    .glass {
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+      border: 1px solid rgba(0,0,0,0.07);
+      backdrop-filter: blur(6px);
+    }
+
+    /* Étapes */
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+
+    /* Upload zones */
+    .upload-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .upload-zone:hover { border-color: var(--sky); background: #f0f9ff; }
+    .upload-zone.has-file { border-color: #22c55e; background: #f0fdf4; }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      height: 4px;
+      background: linear-gradient(90deg, var(--sky), var(--indigo));
+      border-radius: 2px;
+      transition: width .4s ease;
+    }
+
+    /* Focus ring */
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+      border-color: var(--indigo) !important;
+    }
+
+    /* Step indicator dot */
+    .step-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      transition: all .3s;
+    }
+    .step-dot.done    { background: #22c55e; color: #fff; }
+    .step-dot.active  { background: var(--indigo); color: #fff; }
+    .step-dot.pending { background: #e2e8f0; color: #94a3b8; }
+
+    @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .step-panel.active { animation: fadein .25s ease; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin .7s linear infinite; }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-slate-800 antialiased">
+
+  <div class="max-w-2xl mx-auto px-4 py-8">
+
+    <!-- En-tête -->
+    <header class="flex items-center gap-4 mb-8">
+      <a href="index.html" class="flex items-center gap-3 group">
+        <img src="logo.png" alt="taktik" class="w-10 h-10 rounded-lg bg-white/5 p-1.5 object-contain" />
+        <span class="text-xl font-extrabold text-sky-600 group-hover:text-sky-500 transition-colors">taktik</span>
+      </a>
+      <div class="ml-auto">
+        <a href="index.html" class="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-left text-xs"></i> Retour
+        </a>
+      </div>
+    </header>
+
+    <!-- Titre -->
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Vérification d'identité</h1>
+      <p class="text-slate-500 text-sm mt-1">Complétez les 4 étapes pour débloquer les retraits Tiks.</p>
+    </div>
+
+    <!-- Barre de progression -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <!-- Dots -->
+        <div class="flex items-center gap-2 w-full">
+          <div id="dot1" class="step-dot active">1</div>
+          <div class="flex-1 h-0.5 bg-slate-200" id="line1"></div>
+          <div id="dot2" class="step-dot pending">2</div>
+          <div class="flex-1 h-0.5 bg-slate-200" id="line2"></div>
+          <div id="dot3" class="step-dot pending">3</div>
+          <div class="flex-1 h-0.5 bg-slate-200" id="line3"></div>
+          <div id="dot4" class="step-dot pending">4</div>
+        </div>
+      </div>
+      <div class="bg-slate-100 rounded-full h-1">
+        <div class="progress-bar" id="progressBar" style="width:0%"></div>
+      </div>
+      <div class="flex justify-between text-xs text-slate-400 mt-1">
+        <span>Identité</span><span>Document</span><span>Selfie</span><span>Adresse</span>
+      </div>
+    </div>
+
+    <!-- Message global (erreur / succès) -->
+    <div id="globalMsg" class="hidden mb-4 p-3 rounded-lg text-sm font-medium"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 1 — Identité                                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step1" class="step-panel active glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-user text-sky-500"></i> Informations personnelles
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Entrez vos informations telles qu'elles apparaissent sur votre document officiel.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nom complet <span class="text-red-500">*</span></label>
+          <input id="fullName" type="text" placeholder="Jean Dupont"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Date de naissance <span class="text-red-500">*</span></label>
+            <input id="birthDate" type="date"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nationalité</label>
+            <input id="nationality" type="text" placeholder="Haïtienne"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button onclick="goStep(2)" class="px-6 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+          Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 2 — Document                                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step2" class="step-panel glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-id-card text-indigo-500"></i> Document d'identité
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Téléversez une photo nette et lisible de votre document.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Type de document <span class="text-red-500">*</span></label>
+          <select id="documentType"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm">
+            <option value="national_id">Carte Nationale d'Identité</option>
+            <option value="passport">Passeport</option>
+            <option value="driver_license">Permis de conduire</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Numéro du document <span class="text-red-500">*</span></label>
+          <input id="documentNumber" type="text" placeholder="Ex : 0012-3456-7"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Recto <span class="text-red-500">*</span></label>
+            <div class="upload-zone" id="zoneFront">
+              <input type="file" id="fileFront" accept="image/*,.pdf" onchange="previewUpload('fileFront','zoneFront','previewFront')" />
+              <div id="previewFront">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-2 block"></i>
+                <div class="text-sm text-slate-500">Cliquez ou glissez</div>
+                <div class="text-xs text-slate-400 mt-0.5">JPG, PNG, PDF — max 5MB</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Verso</label>
+            <div class="upload-zone" id="zoneBack">
+              <input type="file" id="fileBack" accept="image/*,.pdf" onchange="previewUpload('fileBack','zoneBack','previewBack')" />
+              <div id="previewBack">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-2 block"></i>
+                <div class="text-sm text-slate-500">Cliquez ou glissez</div>
+                <div class="text-xs text-slate-400 mt-0.5">Optionnel pour passeport</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-between">
+        <button onclick="goStep(1)" class="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors">
+          <i class="fa-solid fa-arrow-left mr-1"></i> Retour
+        </button>
+        <button onclick="goStep(3)" class="px-6 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+          Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 3 — Selfie                                       -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step3" class="step-panel glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-camera text-purple-500"></i> Selfie de vérification
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Prenez une photo de vous tenant votre document d'identité.</p>
+
+      <!-- Conseils -->
+      <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5">
+        <div class="text-sm font-semibold text-indigo-700 mb-2">📸 Conseils pour un bon selfie</div>
+        <ul class="text-xs text-indigo-600 space-y-1 list-none">
+          <li>✅ Visage clairement visible, sans lunettes de soleil</li>
+          <li>✅ Document lisible tenu à la main</li>
+          <li>✅ Bonne luminosité, pas de contre-jour</li>
+          <li>❌ Pas de photo de photo ni de scan</li>
+        </ul>
+      </div>
+
+      <div class="upload-zone" id="zoneSelfie">
+        <input type="file" id="fileSelfie" accept="image/*" capture="user"
+          onchange="previewUpload('fileSelfie','zoneSelfie','previewSelfie')" />
+        <div id="previewSelfie">
+          <i class="fa-solid fa-face-smile text-3xl text-slate-300 mb-2 block"></i>
+          <div class="text-sm text-slate-500 font-medium">Prendre un selfie ou téléverser</div>
+          <div class="text-xs text-slate-400 mt-1">JPG ou PNG — max 5MB</div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-between">
+        <button onclick="goStep(2)" class="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors">
+          <i class="fa-solid fa-arrow-left mr-1"></i> Retour
+        </button>
+        <button onclick="goStep(4)" class="px-6 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+          Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 4 — Adresse + soumission                         -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step4" class="step-panel glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-location-dot text-emerald-500"></i> Adresse
+      </h2>
+      <p class="text-sm text-slate-500 mb-5">Renseignez votre adresse de résidence actuelle.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Adresse (ligne 1)</label>
+          <input id="addressLine1" type="text" placeholder="Rue, numéro, appartement…"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Adresse (ligne 2)</label>
+          <input id="addressLine2" type="text" placeholder="Quartier, zone…"
+            class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Ville</label>
+            <input id="city" type="text" placeholder="Port-au-Prince"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Pays</label>
+            <input id="country" type="text" placeholder="Haïti"
+              class="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Résumé avant soumission -->
+      <div id="summaryBox" class="mt-5 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm space-y-1 hidden">
+        <div class="font-semibold text-slate-700 mb-2">📋 Récapitulatif</div>
+        <div id="summaryContent" class="text-slate-600 space-y-0.5 text-xs"></div>
+      </div>
+
+      <!-- Consentement -->
+      <label class="flex items-start gap-3 mt-5 cursor-pointer">
+        <input id="consent" type="checkbox" class="mt-0.5 accent-indigo-600 w-4 h-4 flex-shrink-0" />
+        <span class="text-xs text-slate-600 leading-relaxed">
+          Je certifie que les informations fournies sont exactes et que les documents téléversés sont authentiques.
+          J'accepte que taktik traite ces données à des fins de vérification d'identité conformément à sa politique de confidentialité.
+        </span>
+      </label>
+
+      <div id="submitMsg" class="mt-3 text-sm min-h-5 font-medium"></div>
+
+      <div class="mt-5 flex justify-between items-center">
+        <button onclick="goStep(3)" class="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors">
+          <i class="fa-solid fa-arrow-left mr-1"></i> Retour
+        </button>
+        <button id="submitBtn" onclick="submitKYC()"
+          class="px-7 py-2.5 rounded-lg font-semibold text-sm text-white transition-all
+                 bg-gradient-to-r from-sky-500 to-indigo-500 hover:opacity-90">
+          <i class="fa-solid fa-paper-plane mr-1.5"></i> Soumettre le KYC
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ÉTAPE 5 — Confirmation                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="step5" class="step-panel glass rounded-2xl p-8 text-center">
+      <div class="text-6xl mb-4">🎉</div>
+      <h2 class="text-2xl font-bold text-slate-800 mb-2">Demande envoyée !</h2>
+      <p class="text-slate-500 text-sm leading-relaxed mb-6">
+        Votre dossier KYC a été soumis avec succès.<br>
+        Notre équipe le vérifiera dans un délai de <strong>24 à 48 heures</strong>.<br>
+        Vous recevrez une notification dès que votre identité sera confirmée.
+      </p>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-700 mb-6 text-left">
+        <strong>Que se passe-t-il ensuite ?</strong><br>
+        1. Notre équipe examine vos documents<br>
+        2. Vous recevez une notification de vérification<br>
+        3. Les retraits Tiks sont débloqués sur votre compte
+      </div>
+      <a href="index.html"
+        class="inline-block px-8 py-3 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-colors">
+        <i class="fa-solid fa-house mr-1.5"></i> Retour à l'accueil
+      </a>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  Statut KYC existant (affiché si déjà soumis)          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="existingKYC" class="hidden glass rounded-2xl p-6 text-center">
+      <div id="existingIcon" class="text-5xl mb-3">⏳</div>
+      <h2 id="existingTitle" class="text-xl font-bold text-slate-800 mb-2">Demande en cours</h2>
+      <p id="existingText" class="text-slate-500 text-sm mb-5">Votre dossier est en cours d'examen.</p>
+      <a href="index.html" class="inline-block px-6 py-2.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold text-sm transition-colors">
+        Retour à l'accueil
+      </a>
+    </div>
+
+  </div><!-- /max-w-2xl -->
+
+<script type="module">
+/* ── Supabase client ── */
+let supabase = null;
+try {
+  const mod = await import('./supabaseClient.js');
+  supabase = mod.supabase;
+} catch (e) { console.warn('supabaseClient.js non trouvé', e); }
+
+/* ── Fichiers uploadés ── */
+window._kycFiles = { front: null, back: null, selfie: null };
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Upload dans Supabase Storage                              */
+/* ══════════════════════════════════════════════════════════ */
+async function uploadFile(file, folder, userId) {
+  if (!supabase || !file) return null;
+  const ext  = file.name.split('.').pop();
+  const path = `${userId}/${folder}_${Date.now()}.${ext}`;
+  const { data, error } = await supabase.storage
+    .from('kyc-documents')
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (error) { console.warn('Upload error', error); return null; }
+  const { data: urlData } = supabase.storage.from('kyc-documents').getPublicUrl(path);
+  return urlData?.publicUrl ?? null;
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Vérification de l'état KYC existant                      */
+/* ══════════════════════════════════════════════════════════ */
+async function checkExistingKYC() {
+  if (!supabase) return;
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const user = session?.session?.user;
+    if (!user) return; // pas connecté — laisse le formulaire visible
+
+    const { data: kyc } = await supabase
+      .from('kyc_profiles')
+      .select('status, is_verified, rejection_reason, submitted_at')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!kyc) return; // pas de KYC → montrer le formulaire
+
+    /* KYC déjà soumis → afficher le statut */
+    hideFormAndShowStatus(kyc);
+  } catch (e) { console.warn('checkExistingKYC error', e); }
+}
+
+function hideFormAndShowStatus(kyc) {
+  /* Cacher tout le formulaire */
+  ['step1','step2','step3','step4'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.querySelector('.mb-6')?.style?.setProperty('display','none'); // progress bar parent
+
+  /* Afficher le bloc statut */
+  const box = document.getElementById('existingKYC');
+  box.classList.remove('hidden');
+
+  const STATUS_MAP = {
+    pending:      { icon: '⏳', title: 'Demande en attente',     color: '#f59e0b', text: 'Votre dossier a été soumis et attend d\'être examiné.' },
+    under_review: { icon: '🔍', title: 'Demande en cours d\'examen', color: '#6366f1', text: 'Notre équipe examine actuellement vos documents.' },
+    verified:     { icon: '✅', title: 'Identité vérifiée !',    color: '#16a34a', text: 'Votre identité a été confirmée. Les retraits Tiks sont débloqués.' },
+    rejected:     { icon: '❌', title: 'Demande rejetée',         color: '#dc2626', text: kyc.rejection_reason ?? 'Votre demande a été rejetée. Vous pouvez soumettre une nouvelle demande.' },
+  };
+
+  const info = STATUS_MAP[kyc.status] ?? STATUS_MAP.pending;
+  document.getElementById('existingIcon').textContent  = info.icon;
+  document.getElementById('existingTitle').textContent = info.title;
+  document.getElementById('existingTitle').style.color = info.color;
+  document.getElementById('existingText').textContent  = info.text;
+
+  /* Si rejeté → bouton pour re-soumettre */
+  if (kyc.status === 'rejected') {
+    const btn = document.createElement('button');
+    btn.textContent = 'Soumettre une nouvelle demande';
+    btn.className = 'block mx-auto mt-3 px-6 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm transition-colors';
+    btn.onclick = () => location.reload();
+    document.getElementById('existingKYC').appendChild(btn);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Navigation entre étapes                                   */
+/* ══════════════════════════════════════════════════════════ */
+window.goStep = function(n) {
+  // Validation étape 1
+  if (n > 1) {
+    const name      = document.getElementById('fullName').value.trim();
+    const birthDate = document.getElementById('birthDate').value;
+    if (!name || !birthDate) { showMsg('Veuillez remplir le nom complet et la date de naissance.', 'red'); return; }
+  }
+  // Validation étape 2
+  if (n > 2) {
+    const docNum = document.getElementById('documentNumber').value.trim();
+    if (!docNum) { showMsg('Veuillez saisir le numéro de document.', 'red'); return; }
+    if (!window._kycFiles.front) { showMsg('Veuillez téléverser le recto du document.', 'red'); return; }
+  }
+
+  // Afficher récap avant soumission
+  if (n === 4) buildSummary();
+
+  clearMsg();
+
+  // Mise à jour des étapes
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById(`step${i}`)?.classList.toggle('active', i === n);
+    const dot = document.getElementById(`dot${i}`);
+    if (dot) {
+      dot.className = 'step-dot ' + (i < n ? 'done' : i === n ? 'active' : 'pending');
+      if (i < n) dot.innerHTML = '<i class="fa-solid fa-check text-xs"></i>';
+      else dot.textContent = i;
+    }
+  }
+
+  // Progression
+  const pct = ((n - 1) / 3) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+function buildSummary() {
+  const box  = document.getElementById('summaryBox');
+  const cont = document.getElementById('summaryContent');
+  const lines = [
+    ['Nom',      document.getElementById('fullName').value.trim()],
+    ['Naissance', document.getElementById('birthDate').value],
+    ['Nationalité', document.getElementById('nationality').value.trim() || '—'],
+    ['Document',  document.getElementById('documentType').options[document.getElementById('documentType').selectedIndex].text],
+    ['N° document', document.getElementById('documentNumber').value.trim()],
+    ['Recto',    window._kycFiles.front ? '✅ Fichier joint' : '—'],
+    ['Verso',    window._kycFiles.back  ? '✅ Fichier joint' : '—'],
+    ['Selfie',   window._kycFiles.selfie ? '✅ Fichier joint' : '—'],
+  ];
+  cont.innerHTML = lines.map(([k,v]) =>
+    `<div class="flex gap-2"><span class="font-medium text-slate-500 w-24 flex-shrink-0">${k} :</span><span>${v}</span></div>`
+  ).join('');
+  box.classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Preview upload                                            */
+/* ══════════════════════════════════════════════════════════ */
+window.previewUpload = function(inputId, zoneId, previewId) {
+  const input = document.getElementById(inputId);
+  const zone  = document.getElementById(zoneId);
+  const prev  = document.getElementById(previewId);
+  const file  = input.files?.[0];
+  if (!file) return;
+
+  // Stocker le fichier
+  if (inputId === 'fileFront')  window._kycFiles.front  = file;
+  if (inputId === 'fileBack')   window._kycFiles.back   = file;
+  if (inputId === 'fileSelfie') window._kycFiles.selfie = file;
+
+  zone.classList.add('has-file');
+
+  if (file.type.startsWith('image/')) {
+    const url = URL.createObjectURL(file);
+    prev.innerHTML = `
+      <img src="${url}" alt="preview" style="max-height:100px;object-fit:cover;border-radius:8px;margin:0 auto;" />
+      <div style="font-size:11px;color:#16a34a;margin-top:6px;font-weight:600;">✅ ${file.name}</div>`;
+  } else {
+    prev.innerHTML = `
+      <i class="fa-solid fa-file-pdf text-2xl text-red-400 mb-1 block"></i>
+      <div style="font-size:11px;color:#16a34a;font-weight:600;">✅ ${file.name}</div>`;
+  }
+};
+
+/* ══════════════════════════════════════════════════════════ */
+/*  Soumission                                                */
+/* ══════════════════════════════════════════════════════════ */
+window.submitKYC = async function() {
+  const consent = document.getElementById('consent').checked;
+  if (!consent) { showMsg('Veuillez cocher la case de consentement.', 'red'); return; }
+
+  if (!supabase) { showMsg('Service indisponible — rechargez la page.', 'red'); return; }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData?.session?.user;
+  if (!user) { showMsg('Vous devez être connecté pour soumettre le KYC.', 'red'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full spin mr-2"></span>Envoi en cours…`;
+  clearMsg();
+
+  try {
+    /* 1. Upload des fichiers vers Storage */
+    showMsg('Téléversement des documents…', 'blue');
+    const [frontUrl, backUrl, selfieUrl] = await Promise.all([
+      uploadFile(window._kycFiles.front,  'front',  user.id),
+      uploadFile(window._kycFiles.back,   'back',   user.id),
+      uploadFile(window._kycFiles.selfie, 'selfie', user.id),
+    ]);
+
+    /* 2. Appel RPC rpc_submit_kyc */
+    showMsg('Enregistrement de votre dossier…', 'blue');
+    const { error: rpcErr } = await supabase.rpc('rpc_submit_kyc', {
+      p_full_name:          document.getElementById('fullName').value.trim(),
+      p_birth_date:         document.getElementById('birthDate').value,
+      p_nationality:        document.getElementById('nationality').value.trim() || null,
+      p_document_type:      document.getElementById('documentType').value,
+      p_document_number:    document.getElementById('documentNumber').value.trim(),
+      p_document_front_url: frontUrl,
+      p_document_back_url:  backUrl,
+      p_selfie_url:         selfieUrl,
+      p_address_line1:      document.getElementById('addressLine1').value.trim() || null,
+      p_address_line2:      document.getElementById('addressLine2').value.trim() || null,
+      p_city:               document.getElementById('city').value.trim() || null,
+      p_country:            document.getElementById('country').value.trim() || null,
+    });
+
+    if (rpcErr) throw new Error(rpcErr.message ?? 'Erreur lors de la soumission');
+
+    /* 3. Afficher la confirmation */
+    clearMsg();
+    for (let i = 1; i <= 4; i++) document.getElementById(`step${i}`)?.classList.remove('active');
+    document.getElementById('step5').classList.add('active');
+    document.getElementById('progressBar').style.width = '100%';
+    for (let i = 1; i <= 4; i++) {
+      const dot = document.getElementById(`dot${i}`);
+      if (dot) { dot.className = 'step-dot done'; dot.innerHTML = '<i class="fa-solid fa-check text-xs"></i>'; }
+    }
+
+  } catch (e) {
+    console.error('submitKYC error', e);
+    showMsg(`Erreur : ${e?.message ?? e}`, 'red');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1.5"></i> Réessayer';
+  }
+};
+
+/* ── Helpers messages ── */
+function showMsg(text, color = 'blue') {
+  const colors = {
+    red:  { bg: '#fef2f2', border: '#fecaca', text: '#dc2626' },
+    blue: { bg: '#eff6ff', border: '#bfdbfe', text: '#2563eb' },
+    green:{ bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a' },
+  };
+  const c = colors[color] ?? colors.blue;
+  const el = document.getElementById('submitMsg');
+  if (el) {
+    el.style.cssText = `background:${c.bg};border:1px solid ${c.border};color:${c.text};
+      padding:8px 12px;border-radius:8px;font-size:13px;`;
+    el.textContent = text;
+  }
+  // Message global aussi
+  const gm = document.getElementById('globalMsg');
+  if (gm && color === 'red') {
+    gm.style.cssText = `background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:10px 14px;border-radius:8px;`;
+    gm.textContent = text;
+    gm.classList.remove('hidden');
+    setTimeout(() => gm.classList.add('hidden'), 5000);
+  }
+}
+window.showMsg = showMsg;
+
+function clearMsg() {
+  const el = document.getElementById('submitMsg');
+  if (el) { el.textContent = ''; el.style.cssText = ''; }
+}
+window.clearMsg = clearMsg;
+
+/* ── Init ── */
+checkExistingKYC();
+document.getElementById('currentYear') && (document.getElementById('currentYear').textContent = new Date().getFullYear());
+
+</script>
+
+<footer class="mt-6 pb-6 text-center text-xs text-slate-400">
+  ©Taktik <span id="currentYear"></span> — Vos données sont protégées et chiffrées.
+</footer>
+
+</body>
+</html>
