@@ -229,7 +229,7 @@ const FALLBACK_RATE  = 133.0;  // HTG par USD si exchange_rates vide
     }
 
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/moncash-initiate`, {
+      const res = await fetch(`${supabaseUrl}/functions/v1/moncash-payment`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ pack_id: packId }),
