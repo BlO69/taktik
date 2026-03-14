@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Accueil — taktik</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    html,body{height:100%;}
+    body{overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    .glass{background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03));border:1px solid rgba(0,0,0,0.06);backdrop-filter:blur(6px)}
+    .focus-ring:focus{outline:none;box-shadow:0 0 0 4px rgba(99,102,241,0.12);border-color:rgb(99,102,241)}
+    .hambtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px}
+    @media(min-width:768px){.mobile-only{display:none!important}}
+    .no-overflow{max-width:100%}
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-slate-800 antialiased">
+<div class="max-w-5xl mx-auto px-4 py-8 no-overflow">
+
+  <!-- HEADER -->
+  <header class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <img src="logo.png" alt="taktik" class="w-12 h-12 rounded-lg bg-white/5 p-2 object-contain" />
+      <div>
+        <h1 class="text-2xl font-extrabold text-sky-600">taktik</h1>
+        <p class="text-sm text-slate-500">Bienvenue sur la plateforme</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="hamburger" aria-label="Ouvrir le menu" class="hambtn mobile-only glass p-1">
+        <i class="fa-solid fa-bars text-slate-700"></i>
+      </button>
+      <div id="userPreview" class="hidden md:flex items-center gap-3">
+        <img id="navAvatar" src="logo.png" alt="avatar" class="w-10 h-10 rounded-full object-cover border border-slate-200" />
+        <div class="text-right">
+          <div id="navName" class="text-sm font-medium">Invité</div>
+          <div id="navEmail" class="text-xs text-slate-500">—</div>
+        </div>
+      </div>
+      <button id="logoutBtn" class="px-3 py-2 rounded-md bg-sky-50 hover:bg-sky-100 text-sm hidden">Se déconnecter</button>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+    <!-- NAV -->
+    <nav id="mainNav" class="fixed inset-0 z-50 md:z-auto md:static md:col-span-1 glass p-4 rounded-xl hidden md:block">
+      <ul class="space-y-2">
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md bg-sky-500 text-white font-semibold" id="menuHome">
+            <i class="fa-solid fa-house"></i><span>Accueil</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuTournament">
+            <i class="fa-solid fa-trophy"></i><span>Compétitions</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuStats">
+            <i class="fa-solid fa-chart-line"></i><span>Statistiques</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuGames">
+            <i class="fa-solid fa-gamepad"></i><span>Jeux en cours</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full relative flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuNotifications" aria-haspopup="true" aria-expanded="false">
+            <i class="fa-solid fa-bell"></i>
+            <span>Notifications</span>
+            <span id="notifBadge" class="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold leading-none rounded-full bg-red-600 text-white hidden">0</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuTiks">
+            <i class="fa-solid fa-coins"></i><span>Tiks</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuTx">
+            <i class="fa-solid fa-exchange-alt"></i><span>Transactions</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuMingots">
+            <i class="fa-solid fa-gem"></i><span>Mingots</span>
+          </button>
+        </li>
+        <li>
+          <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuProfile">
+            <i class="fa-solid fa-user"></i><span>Mon profil</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="md:col-span-3 space-y-6">
+
+      <!-- HOME PANEL -->
+      <section id="homePanel" class="glass p-6 rounded-xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Bienvenue sur taktik</h2>
+            <p class="text-slate-600 mt-1">Rejoins une compétition, affronte d'autres joueurs et gagne des Tiks !</p>
+          </div>
+          <button id="profileBtn" class="px-3 py-2 rounded-md bg-white/50 hover:bg-white/60">Mon profil</button>
+        </div>
+
+        <!-- Overview compétitions + stats -->
+        <div class="mt-6 grid gap-6 md:grid-cols-2">
+
+          <!-- Aperçu compétitions -->
+          <div class="bg-white p-4 rounded-lg">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold text-slate-800">🏆 Compétitions</h3>
+              <button id="homeGoTournament"
+                class="px-3 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-sm font-semibold">
+                Voir tout →
+              </button>
+            </div>
+            <div id="homeCompOverview">
+              <div class="flex items-center gap-2 text-slate-400 text-sm py-4">
+                <svg class="animate-spin w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                Chargement…
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats rapides -->
+          <div class="bg-white p-4 rounded-lg">
+            <h3 class="font-semibold text-slate-800 mb-3">Statistiques rapides</h3>
+            <ul class="text-slate-700 space-y-2">
+              <li><strong id="statGames">0</strong> parties jouées</li>
+              <li><strong id="statWins">0</strong> victoires</li>
+              <li><strong id="statTiks">0</strong> Tiks</li>
+            </ul>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- PROFILE PANEL -->
+      <section id="profilePanel" class="glass p-6 rounded-xl hidden">
+        <h3 class="text-lg font-bold text-slate-800 mb-3">Mettre à jour le profil</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="col-span-1 flex flex-col items-center gap-3">
+            <div class="w-36 h-36 rounded-full overflow-hidden bg-slate-100 border">
+              <img id="avatarPreview" src="logo.png" alt="avatar" class="w-full h-full object-cover" />
+            </div>
+            <input id="avatarFile" type="file" accept="image/*" class="text-sm text-slate-600" />
+            <div class="text-xs text-slate-500">Formats: PNG, JPG. Max recommandé: 2MB</div>
+          </div>
+          <div class="col-span-2 space-y-3">
+            <label class="block">
+              <span class="text-sm text-slate-700">Pseudo</span>
+              <input id="usernameInput" type="text" placeholder="Ton pseudo"
+                class="mt-1 block w-full px-3 py-2 bg-white rounded-md border border-slate-200 focus-ring" />
+            </label>
+            <div class="flex gap-3">
+              <button id="saveProfile" class="px-4 py-2 bg-sky-500 rounded-md text-white font-semibold">Enregistrer</button>
+              <button id="cancelProfile" class="px-4 py-2 bg-white/50 rounded-md">Annuler</button>
+            </div>
+            <div id="profileMsg" class="text-sm text-slate-600"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PLACEHOLDER PANEL (Compétitions, Stats, Notifs, Tiks, Tx, Mingots, Jeux) -->
+      <section id="placeholderPanel" class="glass p-6 rounded-xl hidden">
+        <h3 class="text-lg font-semibold text-slate-800" id="placeholderTitle">Titre</h3>
+        <div class="text-slate-600 mt-2" id="placeholderText">Contenu à venir...</div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS CORE
+══════════════════════════════════════════════════════════ -->
+<script type="module">
+
+/* ── Supabase ── */
+let supabase = null;
+try {
+  const mod = await import('./supabaseClient.js');
+  supabase = mod.supabase;
+} catch(e) { console.warn('supabaseClient.js non trouvé — mode demo', e); }
+
+/* ── Auth fill ── */
+async function ensureAuth() {
+  if (!supabase) return;
+  try {
+    const res = await supabase.auth.getSession();
+    const session = res?.data?.session ?? null;
+    if (!session || !session.user) return;
+    const user = session.user;
+    document.getElementById('navEmail').textContent = user.email || '';
+    const metadata = user.user_metadata ?? user?.app_metadata ?? {};
+    document.getElementById('navName').textContent =
+      metadata.username || metadata.name || user.email.split('@')[0] || 'Utilisateur';
+    if (metadata.avatar_url) {
+      document.getElementById('navAvatar').src = metadata.avatar_url;
+      document.getElementById('avatarPreview').src = metadata.avatar_url;
+    }
+    document.getElementById('logoutBtn').classList.remove('hidden');
+    // Masquer le bouton login footer quand session active
+    document.getElementById('loginFooterBtn')?.classList.add('hidden');
+  } catch(e) { console.warn('Erreur récupération session', e); }
+}
+ensureAuth();
+
+if (window.initNotifications) window.initNotifications();
+
+/* ── Logout ── */
+(function(){
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (!logoutBtn) return;
+  logoutBtn.addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    const client = supabase ?? window.supabase ?? null;
+    if (!client?.auth?.signOut) {
+      try { localStorage.clear(); sessionStorage.clear(); } catch(_) {}
+      location.reload(); return;
+    }
+    try {
+      const { error } = await client.auth.signOut();
+      if (error) { alert('Erreur lors de la déconnexion — voir console'); return; }
+      document.getElementById('navName').textContent = 'Invité';
+      document.getElementById('navEmail').textContent = '—';
+      document.getElementById('navAvatar').src = 'logo.png';
+      logoutBtn.classList.add('hidden');
+      location.reload();
+    } catch(err) { alert('Impossible de se déconnecter — voir console.'); }
+  });
+})();
+
+/* ── Hamburger ── */
+const hamburger = document.getElementById('hamburger');
+const mainNav   = document.getElementById('mainNav');
+hamburger.addEventListener('click', () => mainNav.classList.toggle('hidden'));
+
+/* ══════════════════════════════════════════════════════════
+   MENU — wiring + persistance localStorage
+══════════════════════════════════════════════════════════ */
+
+const menuHome         = document.getElementById('menuHome');
+const menuTournament   = document.getElementById('menuTournament');
+const menuStats        = document.getElementById('menuStats');
+const menuGames        = document.getElementById('menuGames');
+const menuNotifications= document.getElementById('menuNotifications');
+const menuTiks         = document.getElementById('menuTiks');
+const menuTx           = document.getElementById('menuTx');
+const menuMingots      = document.getElementById('menuMingots');
+const menuProfile      = document.getElementById('menuProfile');
+
+const homePanel        = document.getElementById('homePanel');
+const profilePanel     = document.getElementById('profilePanel');
+const placeholderPanel = document.getElementById('placeholderPanel');
+
+const ALL_MENU_BTNS = [menuHome, menuTournament, menuStats, menuGames,
+  menuNotifications, menuTiks, menuTx, menuMingots, menuProfile];
+
+function setActiveMenu(btn) {
+  ALL_MENU_BTNS.forEach(el => el?.classList.remove('bg-sky-500','text-white','font-semibold'));
+  btn?.classList.add('bg-sky-500','text-white','font-semibold');
+  try { localStorage.setItem('taktik_active_menu', btn?.id ?? 'menuHome'); } catch(_) {}
+}
+window.setActiveMenu = setActiveMenu;
+
+function closeNav() { if (window.innerWidth < 768) mainNav.classList.add('hidden'); }
+
+function showPlaceholder(title, text = '') {
+  homePanel.classList.add('hidden');
+  profilePanel.classList.add('hidden');
+  placeholderPanel.classList.remove('hidden');
+  document.getElementById('placeholderTitle').textContent = title;
+  document.getElementById('placeholderText').innerHTML = text || 'Contenu à venir…';
+}
+
+/* ── Home ── */
+menuHome.addEventListener('click', () => {
+  setActiveMenu(menuHome);
+  homePanel.classList.remove('hidden');
+  profilePanel.classList.add('hidden');
+  placeholderPanel.classList.add('hidden');
+  closeNav();
+});
+
+/* ── Compétitions ── */
+let _tournamentLoaded = false;
+menuTournament.addEventListener('click', async () => {
+  setActiveMenu(menuTournament);
+  showPlaceholder('Compétitions', '<div style="color:#94a3b8;font-size:13px;">Chargement…</div>');
+  closeNav();
+  document.getElementById('placeholderTitle').textContent = 'Compétitions';
+
+  try {
+    const mod = await import('./tournament.js');
+    if (mod && typeof mod.default === 'function') {
+      _tournamentLoaded = true;
+      await mod.default(supabase, document.getElementById('placeholderText'));
+    } else {
+      document.getElementById('placeholderText').innerHTML =
+        '<div style="color:#dc2626;">Module compétitions non disponible.</div>';
+    }
+  } catch(e) {
+    console.warn('Erreur chargement tournament.js', e);
+    document.getElementById('placeholderText').innerHTML =
+      '<div style="color:#dc2626;">Impossible de charger les compétitions.</div>';
+  }
+});
+
+/* ── Stats ── */
+menuStats.addEventListener('click', () => {
+  setActiveMenu(menuStats);
+  showPlaceholder('Statistiques', 'Ici s'afficheront tes statistiques détaillées.');
+  closeNav();
+});
+
+/* ── Jeux en cours ── */
+menuGames.addEventListener('click', async () => {
+  setActiveMenu(menuGames);
+  showPlaceholder('Jeux en cours', 'Chargement...');
+  closeNav();
+  try {
+    if (window.taktikCreateGame?.searchProfiles) {
+      document.getElementById('placeholderText').innerHTML = '';
+      return;
+    }
+    const mod = await import('./create_game.js');
+    if (mod && typeof mod.default === 'function') {
+      await mod.default(supabase);
+      document.getElementById('placeholderText').innerHTML = '';
+    } else {
+      document.getElementById('placeholderText').innerHTML = 'Matchmaking non disponible.';
+    }
+  } catch(e) {
+    console.warn('Erreur chargement create_game.js', e);
+    document.getElementById('placeholderText').innerHTML = 'Matchmaking non disponible.';
+  }
+});
+
+/* ── Notifications ── */
+menuNotifications.addEventListener('click', async () => {
+  setActiveMenu(menuNotifications);
+  showPlaceholder('Notifications', 'Chargement des notifications...');
+  closeNav();
+  if (window.renderNotificationsList) {
+    try { await window.renderNotificationsList(); }
+    catch(e) { console.warn('Erreur affichage notifications', e); }
+  } else {
+    document.getElementById('placeholderText').innerHTML =
+      'Aucune fonctionnalité de notifications trouvée.';
+  }
+});
+
+/* ── Tiks ── */
+menuTiks.addEventListener('click', () => {
+  setActiveMenu(menuTiks);
+  showPlaceholder('Tiks', 'Solde, historique et options d'achat de Tiks.');
+  closeNav();
+});
+
+/* ── Transactions ── */
+menuTx.addEventListener('click', () => {
+  setActiveMenu(menuTx);
+  showPlaceholder('Transactions', 'Historique de transactions.');
+  closeNav();
+});
+
+/* ── Mingots ── */
+menuMingots.addEventListener('click', () => {
+  setActiveMenu(menuMingots);
+  showPlaceholder('Mingots', 'Tes mingots : collection, mise en vente et historique.');
+  closeNav();
+});
+
+/* ── Profile ── */
+menuProfile.addEventListener('click', () => {
+  setActiveMenu(menuProfile);
+  homePanel.classList.add('hidden');
+  profilePanel.classList.remove('hidden');
+  placeholderPanel.classList.add('hidden');
+  closeNav();
+});
+
+/* ── profileBtn (home panel) ── */
+document.getElementById('profileBtn').addEventListener('click', () => menuProfile.click());
+
+/* ── Bouton "Voir tout" compétitions (home panel) ── */
+document.getElementById('homeGoTournament').addEventListener('click', () => menuTournament.click());
+
+/* ── Profile save/cancel ── */
+const avatarFile    = document.getElementById('avatarFile');
+const avatarPreview = document.getElementById('avatarPreview');
+avatarFile?.addEventListener('change', (e) => {
+  const f = e.target.files?.[0]; if (!f) return;
+  avatarPreview.src = URL.createObjectURL(f);
+});
+document.getElementById('saveProfile').addEventListener('click', () => {
+  document.getElementById('profileMsg').textContent = '(Demo) Profil enregistré localement.';
+  setTimeout(() => document.getElementById('profileMsg').textContent = '', 3000);
+});
+document.getElementById('cancelProfile').addEventListener('click', () => {
+  profilePanel.classList.add('hidden');
+  homePanel.classList.remove('hidden');
+  setActiveMenu(menuHome);
+});
+
+/* ── Load external feature scripts (non-blocking) ── */
+['./notif.js','./statistics.js','./profiles.js','./tiks.js','./transactions.js','./mingots.js']
+  .forEach(src => import(src).catch(() => {}));
+
+/* ══════════════════════════════════════════════════════════
+   OVERVIEW COMPÉTITIONS dans le home panel
+══════════════════════════════════════════════════════════ */
+async function loadHomeCompOverview() {
+  const el = document.getElementById('homeCompOverview');
+  if (!el || !supabase) return;
+  try {
+    const { data: ts } = await supabase
+      .from('tournaments')
+      .select('id,status,entry_fee,prize_first')
+      .in('status', ['waiting','active'])
+      .order('created_at', { ascending: true })
+      .limit(3);
+
+    if (!ts?.length) {
+      el.innerHTML = `<p class="text-sm text-slate-400 py-3">Aucune compétition en cours.</p>
+        <button id="homeCreateTrn" class="mt-1 px-3 py-1.5 rounded-md bg-indigo-500 text-white text-sm font-semibold">
+          Créer un tournoi
+        </button>`;
+      el.querySelector('#homeCreateTrn')?.addEventListener('click', () => menuTournament.click());
+      return;
+    }
+
+    el.innerHTML = ts.map(t => {
+      const badge = t.status === 'active'
+        ? `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">En cours</span>`
+        : `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-700">Inscription</span>`;
+      return `<div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+        <div>
+          <span class="text-sm font-semibold text-slate-700">Tournoi KO</span>
+          <span class="ml-2">${badge}</span>
+        </div>
+        <div class="text-xs text-slate-500">💰 ${Number(t.entry_fee).toLocaleString()} TIKS</div>
+      </div>`;
+    }).join('') +
+    `<button id="homeMoreTrn" class="mt-3 text-sm text-indigo-600 font-semibold hover:underline">
+      Voir toutes les compétitions →
+    </button>`;
+
+    el.querySelector('#homeMoreTrn')?.addEventListener('click', () => menuTournament.click());
+  } catch(e) {
+    el.innerHTML = '<p class="text-sm text-slate-400">Chargement impossible.</p>';
+  }
+}
+
+loadHomeCompOverview();
+
+/* ══════════════════════════════════════════════════════════
+   RESTAURER L'ONGLET ACTIF après rafraîchissement
+══════════════════════════════════════════════════════════ */
+(function restoreActiveMenu() {
+  let saved = null;
+  try { saved = localStorage.getItem('taktik_active_menu'); } catch(_) {}
+
+  if (saved && saved !== 'menuHome') {
+    const btn = document.getElementById(saved);
+    if (btn) {
+      // Petit délai pour laisser les listeners s'enregistrer
+      setTimeout(() => btn.click(), 50);
+      return;
+    }
+  }
+  // Par défaut : home (déjà affiché, on set juste le style actif)
+  setActiveMenu(menuHome);
+})();
+
+</script>
+
+<!-- taktikGame stub (lazy-loader) -->
+<script>
+window.taktikGame = window.taktikGame || (function(){
+  let _loading = null;
+  async function _ensureLoaded() {
+    if (_loading) return _loading;
+    _loading = (async () => {
+      try {
+        const mod = await import('./game.js');
+        if (mod && typeof mod.default === 'function') await mod.default(window.supabase ?? null);
+      } catch(err) { console.warn('game.js failed:', err); throw err; }
+    })();
+    return _loading;
+  }
+  return {
+    async joinGame(gameId) {
+      try {
+        await _ensureLoaded();
+        if (window.taktikGame?._isReal) return window.taktikGame.joinGame(gameId);
+        console.warn('joinGame: game.js non chargé.');
+      } catch(e) { alert('Impossible de charger le jeu. Réessayez.'); }
+    },
+    async createGame(...args) {
+      await _ensureLoaded();
+      if (window.taktikGame?._isReal) return window.taktikGame.createGame(...args);
+    },
+    resetLocalGame() { console.warn('resetLocalGame stub'); },
+    placeMove()      { console.warn('placeMove stub'); },
+    _isReal: false,
+  };
+})();
+</script>
+
+<!-- Optional features -->
+<script type="module">
+  try { await import('./statistics.js'); } catch(e){}
+  try { await import('./profiles.js');   } catch(e){}
+  try { await import('./tiks.js');       } catch(e){}
+  try { await import('./game.js');       } catch(e){}
+  try { await import('./transactions.js');} catch(e){}
+  try { await import('./mingots.js');    } catch(e){}
+</script>
+<script type="module" src="./auth.js"></script>
+
+<!-- Footer -->
+<footer class="mt-8">
+  <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between text-sm text-slate-500">
+    <div>©Taktik - <span id="currentYear"></span></div>
+    <div>
+      <!-- Caché si session active — géré par le script ci-dessous -->
+      <button id="loginFooterBtn" class="hidden px-3 py-2 rounded-md bg-sky-500 text-white text-sm" aria-label="Se connecter">
+        Se connecter
+      </button>
+    </div>
+  </div>
+</footer>
+
+<script>
+(async function(){
+  document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+  const btn = document.getElementById('loginFooterBtn');
+
+  function onLoginClick(ev) {
+    if (ev?.preventDefault) ev.preventDefault();
+    if (typeof window.openAuthModal === 'function') {
+      try { window.openAuthModal(); return; } catch(_) {}
+    }
+    try { document.dispatchEvent(new CustomEvent('taktik:open-auth-modal')); } catch(_) {}
+  }
+
+  function showLogin() {
+    btn.classList.remove('hidden');
+    btn.removeEventListener('click', onLoginClick);
+    btn.addEventListener('click', onLoginClick);
+  }
+  function hideLogin() {
+    btn.classList.add('hidden');
+    btn.removeEventListener('click', onLoginClick);
+  }
+
+  try {
+    const sup = window.supabase ?? (typeof supabase !== 'undefined' ? supabase : null);
+    if (!sup?.auth?.getSession) { showLogin(); return; }
+
+    const res     = await sup.auth.getSession();
+    const session = res?.data?.session ?? null;
+
+    // Si session active → cacher le bouton
+    if (session?.user) hideLogin(); else showLogin();
+
+    sup.auth.onAuthStateChange((event, sess) => {
+      if (sess?.user) hideLogin(); else showLogin();
+    });
+  } catch(err) {
+    console.warn('Vérification session footer a échoué', err);
+    showLogin();
+  }
+})();
+</script>
+<script type="module" src="online.js"></script>
+</body>
+</html>
