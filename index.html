@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Accueil — taktik</title>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    html,body{height:100%;}
+    body{overflow-x:hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale}
+
+    .glass {
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+      border: 1px solid rgba(0,0,0,0.06);
+      backdrop-filter: blur(6px);
+    }
+    .focus-ring:focus { outline: none; box-shadow: 0 0 0 4px rgba(99,102,241,0.12); border-color: rgb(99,102,241); }
+
+    .hambtn { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:8px; }
+    @media (min-width: 768px) { .mobile-only { display:none !important; } }
+    .no-overflow { max-width:100%; }
+
+    /* Tournament styles */
+    @keyframes trn-spin{to{transform:rotate(360deg)}}
+    .trn-spinner{display:inline-block;width:18px;height:18px;border:2px solid #94a3b8;border-top-color:#6366f1;border-radius:50%;animation:trn-spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+    .trn-slot-filled{background:#e0f2fe;border:2px solid #38bdf8;color:#0369a1;}
+    .trn-slot-empty{background:#f8fafc;border:2px dashed #cbd5e1;color:#94a3b8;}
+    .trn-bracket-match{background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 14px;min-width:190px;}
+    .trn-bracket-winner{border-color:#22c55e;background:#f0fdf4;}
+    .trn-player-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;}
+    .trn-player-you{font-weight:700;color:#6366f1;}
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-slate-800 antialiased">
+  <div class="max-w-5xl mx-auto px-4 py-8 no-overflow">
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-4">
+        <img src="logo.png" alt="taktik" class="w-12 h-12 rounded-lg bg-white/5 p-2 object-contain" />
+        <div>
+          <h1 class="text-2xl font-extrabold text-sky-600">taktik</h1>
+          <p class="text-sm text-slate-500">Bienvenue sur la plateforme</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="hamburger" aria-label="Ouvrir le menu" class="hambtn mobile-only glass p-1">
+          <i class="fa-solid fa-bars text-slate-700"></i>
+        </button>
+
+        <div id="userPreview" class="hidden md:flex items-center gap-3">
+          <img id="navAvatar" src="logo.png" alt="avatar" class="w-10 h-10 rounded-full object-cover border border-slate-200" />
+          <div class="text-right">
+            <div id="navName" class="text-sm font-medium">Invité</div>
+            <div id="navEmail" class="text-xs text-slate-500">—</div>
+          </div>
+        </div>
+
+        <button id="logoutBtn" class="px-3 py-2 rounded-md bg-sky-50 hover:bg-sky-100 text-sm hidden">Se déconnecter</button>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <!-- NAV -->
+      <nav
+  id="mainNav"
+  class="fixed inset-0 z-50 md:z-auto md:static md:col-span-1
+         glass p-4 rounded-xl
+         hidden md:block">
+        <ul class="space-y-2">
+          <li>
+            <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md bg-sky-500 text-white font-semibold" id="menuHome">
+              <i class="fa-solid fa-house"></i><span>Accueil</span>
+            </button>
+          </li>
+          <li>
+            <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuStats">
+              <i class="fa-solid fa-chart-line"></i><span>Statistiques</span>
+            </button>
+          </li>
+          <li>
+            <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuGames">
+              <i class="fa-solid fa-gamepad"></i><span>Jeux en cours</span>
+            </button>
+          </li>
+          <li>
+            <button class="w-full relative flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuNotifications" aria-haspopup="true" aria-expanded="false">
+              <i class="fa-solid fa-bell"></i>
+              <span>Notifications</span>
+              <span id="notifBadge" class="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold leading-none rounded-full bg-red-600 text-white hidden">0</span>
+            </button>
+          </li>
+          <li>
+            <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuTiks">
+              <i class="fa-solid fa-coins"></i><span>Tiks</span>
+            </button>
+          </li>
+          <li>
+            <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuTx">
+              <i class="fa-solid fa-exchange-alt"></i><span>Transactions</span>
+            </button>
+          </li>
+          <li>
+            <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuMingots">
+              <i class="fa-solid fa-gem"></i><span>Mingots</span>
+            </button>
+          </li>
+          <li>
+            <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100" id="menuProfile">
+              <i class="fa-solid fa-user"></i><span>Mon profil</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- MAIN -->
+      <main class="md:col-span-3 space-y-6">
+        <!-- Welcome / Tournament -->
+        <section id="homePanel" class="glass p-6 rounded-xl">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Bienvenue sur taktik</h2>
+              <p class="text-slate-600 mt-1">Rejoins le mini tournoi et gagne des Tiks !</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button id="profileBtn" class="px-3 py-2 rounded-md bg-white/50 hover:bg-white/60">Mon profil</button>
+            </div>
+          </div>
+
+          <!-- TOURNAMENT WIDGET -->
+          <div class="mt-6 grid gap-6 md:grid-cols-2">
+
+            <!-- Colonne gauche : tournoi -->
+            <div class="bg-white p-4 rounded-lg">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-slate-800">🏆 Mini Tournoi</h3>
+                <span id="trnStatusBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Chargement…</span>
+              </div>
+
+              <!-- Infos prix -->
+              <div class="flex gap-3 mb-4 text-xs">
+                <div class="flex-1 bg-amber-50 border border-amber-200 rounded-lg p-2 text-center">
+                  <div class="text-amber-700 font-semibold">Mise d'entrée</div>
+                  <div class="text-amber-900 font-bold text-base mt-0.5">20 TIKS</div>
+                </div>
+                <div class="flex-1 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-center">
+                  <div class="text-yellow-700 font-semibold">🥇 1er prix</div>
+                  <div class="text-yellow-900 font-bold text-base mt-0.5">40 TIKS</div>
+                </div>
+                <div class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-2 text-center">
+                  <div class="text-slate-600 font-semibold">🥈 2ème</div>
+                  <div class="text-slate-800 font-bold text-base mt-0.5">20 TIKS</div>
+                </div>
+              </div>
+
+              <!-- Slots joueurs -->
+              <div id="trnSlots" class="grid grid-cols-2 gap-2 mb-4">
+                <!-- rempli dynamiquement -->
+              </div>
+
+              <!-- Message état -->
+              <div id="trnMsg" class="text-sm text-slate-500 mb-3 min-h-5"></div>
+
+              <!-- Bouton s'inscrire -->
+              <button id="trnRegisterBtn"
+                class="w-full py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed hidden"
+                disabled>
+                S'inscrire au tournoi (20 TIKS)
+              </button>
+
+              <!-- Bracket (visible quand tournoi actif) -->
+              <div id="trnBracket" class="hidden mt-4">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Bracket</div>
+                <div class="flex flex-col gap-3" id="trnBracketInner"></div>
+              </div>
+            </div>
+
+            <!-- Colonne droite : stats rapides -->
+            <div class="bg-white p-4 rounded-lg">
+              <h3 class="font-semibold text-slate-800 mb-3">Statistiques rapides</h3>
+              <ul class="text-slate-700 space-y-2">
+                <li><strong id="statGames">0</strong> parties jouées</li>
+                <li><strong id="statWins">0</strong> victoires</li>
+                <li><strong id="statTiks">0</strong> Tiks</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Profile editor -->
+        <section id="profilePanel" class="glass p-6 rounded-xl hidden">
+          <h3 class="text-lg font-bold text-slate-800 mb-3">Mettre à jour le profil</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="col-span-1 flex flex-col items-center gap-3">
+              <div class="w-36 h-36 rounded-full overflow-hidden bg-slate-100 border">
+                <img id="avatarPreview" src="logo.png" alt="avatar" class="w-full h-full object-cover" />
+              </div>
+              <input id="avatarFile" type="file" accept="image/*" class="text-sm text-slate-600" />
+              <div class="text-xs text-slate-500">Formats: PNG, JPG. Max recommandé: 2MB</div>
+            </div>
+
+            <div class="col-span-2 space-y-3">
+              <label class="block">
+                <span class="text-sm text-slate-700">Pseudo</span>
+                <input id="usernameInput" type="text" placeholder="Ton pseudo" class="mt-1 block w-full px-3 py-2 bg-white rounded-md border border-slate-200 focus-ring" />
+              </label>
+
+              <div class="flex gap-3">
+                <button id="saveProfile" class="px-4 py-2 bg-sky-500 rounded-md text-white font-semibold">Enregistrer</button>
+                <button id="cancelProfile" class="px-4 py-2 bg-white/50 rounded-md">Annuler</button>
+              </div>
+
+              <div id="profileMsg" class="text-sm text-slate-600"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Other panels (placeholders toggled by menu) -->
+        <section id="placeholderPanel" class="glass p-6 rounded-xl hidden">
+          <h3 class="text-lg font-semibold text-slate-800" id="placeholderTitle">Titre</h3>
+          <p class="text-slate-600 mt-2" id="placeholderText">Contenu à venir...</p>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Core page scripts -->
+  <script type="module">
+    // Try to import supabase client
+    let supabase = null;
+    try {
+      const mod = await import('./supabaseClient.js');
+      supabase = mod.supabase;
+    } catch (e) {
+      console.warn('supabaseClient.js non trouvé — mode demo', e);
+    }
+
+    // Basic auth fill (non-blocking)
+    async function ensureAuth() {
+      if (!supabase) return;
+      try {
+        const res = await supabase.auth.getSession();
+        const session = res?.data?.session ?? null;
+        if (!session || !session.user) return;
+        const user = session.user;
+        document.getElementById('navEmail').textContent = user.email || '';
+        const metadata = user.user_metadata ?? user?.app_metadata ?? {};
+        document.getElementById('navName').textContent = metadata.username || metadata.name || user.email.split('@')[0] || 'Utilisateur';
+        if (metadata.avatar_url) {
+          document.getElementById('navAvatar').src = metadata.avatar_url;
+          document.getElementById('avatarPreview').src = metadata.avatar_url;
+        }
+        document.getElementById('logoutBtn').classList.remove('hidden');
+      } catch (e) { console.warn('Erreur récupération session', e); }
+    }
+    ensureAuth();
+
+    if (window.initNotifications) window.initNotifications();
+
+    // Logout
+    (function(){
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (!logoutBtn) return;
+      logoutBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        const client = (typeof supabase !== 'undefined' && supabase) ? supabase : (window.supabase ?? null);
+        if (!client || !client.auth || typeof client.auth.signOut !== 'function') {
+          try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
+          location.reload(); return;
+        }
+        try {
+          const { error } = await client.auth.signOut();
+          if (error) { alert('Erreur lors de la déconnexion — voir console'); return; }
+          document.getElementById('navName').textContent = 'Invité';
+          document.getElementById('navEmail').textContent = '—';
+          document.getElementById('navAvatar').src = 'logo.png';
+          logoutBtn.classList.add('hidden');
+          location.reload();
+        } catch (err) { alert('Impossible de se déconnecter — voir console.'); }
+      });
+    })();
+
+    // menu & hamburger
+    const hamburger = document.getElementById('hamburger');
+    const mainNav   = document.getElementById('mainNav');
+    hamburger.addEventListener('click', () => { mainNav.classList.toggle('hidden'); });
+
+    // menu refs
+    const menuHome          = document.getElementById('menuHome');
+    const menuStats         = document.getElementById('menuStats');
+    const menuGames         = document.getElementById('menuGames');
+    const menuTiks          = document.getElementById('menuTiks');
+    const menuTx            = document.getElementById('menuTx');
+    const menuMingots       = document.getElementById('menuMingots');
+    const menuProfile       = document.getElementById('menuProfile');
+    const menuNotifications = document.getElementById('menuNotifications');
+
+    const homePanel        = document.getElementById('homePanel');
+    const profilePanel     = document.getElementById('profilePanel');
+    const placeholderPanel = document.getElementById('placeholderPanel');
+
+    function setActiveMenu(btn) {
+      [menuHome, menuStats, menuGames, menuNotifications, menuTiks, menuTx, menuMingots, menuProfile]
+        .forEach(el => el.classList.remove('bg-sky-500','text-white','font-semibold'));
+      btn.classList.add('bg-sky-500','text-white','font-semibold');
+    }
+    window.setActiveMenu = setActiveMenu;
+
+    menuHome.addEventListener('click', () => {
+      setActiveMenu(menuHome);
+      homePanel.classList.remove('hidden');
+      profilePanel.classList.add('hidden');
+      placeholderPanel.classList.add('hidden');
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+    });
+
+    menuStats.addEventListener('click', () => {
+      setActiveMenu(menuStats);
+      homePanel.classList.add('hidden'); profilePanel.classList.add('hidden'); placeholderPanel.classList.remove('hidden');
+      document.getElementById('placeholderTitle').textContent = 'Statistiques';
+      document.getElementById('placeholderText').textContent = 'Ici s'afficheront tes statistiques détaillées.';
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+    });
+
+    menuGames.addEventListener('click', async () => {
+      setActiveMenu(menuGames);
+      homePanel.classList.add('hidden'); profilePanel.classList.add('hidden'); placeholderPanel.classList.remove('hidden');
+      document.getElementById('placeholderTitle').textContent = 'Jeux en cours';
+      document.getElementById('placeholderText').textContent = 'Chargement...';
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+      try {
+        if (window.taktikCreateGame && typeof window.taktikCreateGame.searchProfiles === 'function') {
+          document.getElementById('placeholderText').textContent = '';
+          return;
+        }
+        const mod = await import('./create_game.js');
+        if (mod && typeof mod.default === 'function') {
+          await mod.default(supabase);
+          document.getElementById('placeholderText').textContent = '';
+        } else {
+          document.getElementById('placeholderText').textContent = 'Matchmaking non disponible.';
+        }
+      } catch (e) {
+        console.warn('Erreur chargement create_game.js', e);
+        document.getElementById('placeholderText').textContent = 'Matchmaking non disponible.';
+      }
+    });
+
+    menuTiks.addEventListener('click', () => {
+      setActiveMenu(menuTiks);
+      homePanel.classList.add('hidden'); profilePanel.classList.add('hidden'); placeholderPanel.classList.remove('hidden');
+      document.getElementById('placeholderTitle').textContent = 'Tiks';
+      document.getElementById('placeholderText').textContent = 'Solde, historique et options d'achat de Tiks.';
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+    });
+
+    menuTx.addEventListener('click', () => {
+      setActiveMenu(menuTx);
+      homePanel.classList.add('hidden'); profilePanel.classList.add('hidden'); placeholderPanel.classList.remove('hidden');
+      document.getElementById('placeholderTitle').textContent = 'Transactions';
+      document.getElementById('placeholderText').textContent = 'Historique de transactions.';
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+    });
+
+    menuMingots.addEventListener('click', () => {
+      setActiveMenu(menuMingots);
+      homePanel.classList.add('hidden'); profilePanel.classList.add('hidden'); placeholderPanel.classList.remove('hidden');
+      document.getElementById('placeholderTitle').textContent = 'Mingots';
+      document.getElementById('placeholderText').textContent = 'Tes mingots : collection, mise en vente et historique.';
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+    });
+
+    menuProfile.addEventListener('click', () => {
+      setActiveMenu(menuProfile);
+      homePanel.classList.add('hidden'); profilePanel.classList.remove('hidden'); placeholderPanel.classList.add('hidden');
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+    });
+
+    menuNotifications.addEventListener('click', async () => {
+      setActiveMenu(menuNotifications);
+      homePanel.classList.add('hidden'); profilePanel.classList.add('hidden'); placeholderPanel.classList.remove('hidden');
+      document.getElementById('placeholderTitle').textContent = 'Notifications';
+      document.getElementById('placeholderText').textContent = 'Chargement des notifications...';
+      if (window.innerWidth < 768) mainNav.classList.add('hidden');
+      if (window.renderNotificationsList) {
+        try { await window.renderNotificationsList(); } catch(e){ console.warn('Erreur affichage notifications', e); }
+      } else {
+        document.getElementById('placeholderText').textContent = 'Aucune fonctionnalité de notifications trouvée.';
+      }
+    });
+
+    // Profile button
+    document.getElementById('profileBtn').addEventListener('click', () => {
+      setActiveMenu(menuProfile);
+      homePanel.classList.add('hidden'); profilePanel.classList.remove('hidden'); placeholderPanel.classList.add('hidden');
+    });
+
+    // Profile save / cancel
+    const avatarFile = document.getElementById('avatarFile');
+    const avatarPreview = document.getElementById('avatarPreview');
+    avatarFile?.addEventListener('change', (e) => {
+      const f = e.target.files?.[0]; if (!f) return;
+      avatarPreview.src = URL.createObjectURL(f);
+    });
+    document.getElementById('saveProfile').addEventListener('click', () => {
+      document.getElementById('profileMsg').textContent = '(Demo) Profil enregistré localement.';
+      setTimeout(() => document.getElementById('profileMsg').textContent = '', 3000);
+    });
+    document.getElementById('cancelProfile').addEventListener('click', () => {
+      profilePanel.classList.add('hidden'); homePanel.classList.remove('hidden'); setActiveMenu(menuHome);
+    });
+
+    // external feature scripts
+    const externals = ["./notif.js","./statistics.js","./profiles.js","./tiks.js","./transactions.js","./mingots.js"];
+    for (const src of externals) {
+      import(src).catch(() => {});
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       MINI TOURNOI — logique complète
+       ══════════════════════════════════════════════════════════════════ */
+    (async function initTournament() {
+      if (!supabase) {
+        document.getElementById('trnMsg').textContent = 'Connexion requise pour participer au tournoi.';
+        return;
+      }
+
+      // Éléments DOM
+      const statusBadge  = document.getElementById('trnStatusBadge');
+      const slotsEl      = document.getElementById('trnSlots');
+      const msgEl        = document.getElementById('trnMsg');
+      const registerBtn  = document.getElementById('trnRegisterBtn');
+      const bracketEl    = document.getElementById('trnBracket');
+      const bracketInner = document.getElementById('trnBracketInner');
+
+      let _userId        = null;
+      let _tournament    = null;
+      let _registrations = [];
+      let _matches       = [];
+      let _realtimeChan  = null;
+      let _redirecting   = false;
+
+      // ── Récupère l'utilisateur courant ──────────────────────────────
+      async function getCurrentUser() {
+        try {
+          const { data } = await supabase.auth.getSession();
+          return data?.session?.user ?? null;
+        } catch { return null; }
+      }
+
+      // ── Pseudo depuis user_profiles ─────────────────────────────────
+      async function fetchPseudo(userId) {
+        try {
+          const { data } = await supabase
+            .from('user_profiles')
+            .select('pseudo, avatar_url')
+            .eq('id', userId)
+            .maybeSingle();
+          return data?.pseudo ?? userId?.slice(0, 8) ?? '?';
+        } catch { return userId?.slice(0, 8) ?? '?'; }
+      }
+
+      // ── Charge l'état du tournoi (waiting ou active) ─────────────────
+      async function loadTournamentState() {
+        // Cherche un tournoi en attente ou actif
+        const { data: tournaments } = await supabase
+          .from('tournaments')
+          .select('*')
+          .in('status', ['waiting', 'active'])
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        _tournament = tournaments?.[0] ?? null;
+
+        if (!_tournament) {
+          // Aucun tournoi en cours — affiche bouton s'inscrire (créera un nouveau)
+          _registrations = [];
+          _matches = [];
+          renderWaiting(0);
+          return;
+        }
+
+        // Charge les inscriptions
+        const { data: regs } = await supabase
+          .from('tournament_registrations')
+          .select('user_id, slot')
+          .eq('tournament_id', _tournament.id)
+          .order('slot', { ascending: true });
+        _registrations = regs ?? [];
+
+        // Charge les matchs
+        const { data: matches } = await supabase
+          .from('tournament_matches')
+          .select('*')
+          .eq('tournament_id', _tournament.id);
+        _matches = matches ?? [];
+
+        if (_tournament.status === 'waiting') {
+          renderWaiting(_registrations.length);
+        } else {
+          renderBracket();
+        }
+      }
+
+      // ── Rendu état "en attente" ──────────────────────────────────────
+      async function renderWaiting(count) {
+        const isRegistered = _registrations.some(r => r.user_id === _userId);
+
+        // Badge
+        statusBadge.textContent = `${count}/4 joueurs`;
+        statusBadge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700';
+
+        // Slots
+        slotsEl.innerHTML = '';
+        for (let i = 1; i <= 4; i++) {
+          const reg = _registrations.find(r => r.slot === i);
+          const div = document.createElement('div');
+          div.className = `rounded-lg p-2 text-center text-xs font-medium ${reg ? 'trn-slot-filled' : 'trn-slot-empty'}`;
+          if (reg) {
+            const pseudo = await fetchPseudo(reg.user_id);
+            div.innerHTML = `<i class="fa-solid fa-user mr-1"></i>${pseudo}${reg.user_id === _userId ? ' <span class="text-indigo-500">(vous)</span>' : ''}`;
+          } else {
+            div.innerHTML = `<i class="fa-solid fa-user-slash mr-1 opacity-40"></i>Slot ${i}`;
+          }
+          slotsEl.appendChild(div);
+        }
+
+        // Message
+        if (isRegistered) {
+          msgEl.innerHTML = `<span class="trn-spinner"></span>Inscrit·e ! En attente de ${4 - count} autre(s) joueur(s)…`;
+          registerBtn.classList.add('hidden');
+        } else if (count < 4) {
+          msgEl.textContent = `Rejoins le tournoi pour gagner des Tiks ! (${count}/4 inscrits)`;
+          registerBtn.classList.remove('hidden');
+          registerBtn.disabled = false;
+        }
+
+        bracketEl.classList.add('hidden');
+      }
+
+      // ── Rendu bracket ────────────────────────────────────────────────
+      async function renderBracket() {
+        statusBadge.textContent = 'En cours';
+        statusBadge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700';
+        registerBtn.classList.add('hidden');
+        slotsEl.innerHTML = '';
+        msgEl.textContent = '';
+
+        const semis = _matches.filter(m => m.round === 'semi').sort((a, b) => a.semi_index - b.semi_index);
+        const final = _matches.find(m => m.round === 'final');
+
+        bracketEl.classList.remove('hidden');
+        bracketInner.innerHTML = '';
+
+        // Demi-finales
+        for (const semi of semis) {
+          const p1 = semi.player1_id ? await fetchPseudo(semi.player1_id) : '?';
+          const p2 = semi.player2_id ? await fetchPseudo(semi.player2_id) : '?';
+          const card = document.createElement('div');
+          card.className = `trn-bracket-match ${semi.status === 'finished' ? 'trn-bracket-winner' : ''}`;
+          card.innerHTML = `
+            <div class="text-xs font-bold text-slate-400 mb-1">Demi-finale ${semi.semi_index}</div>
+            <div class="trn-player-row ${semi.player1_id === _userId ? 'trn-player-you' : ''}">
+              ${semi.winner_id === semi.player1_id ? '🏆 ' : ''}<span>${p1}${semi.player1_id === _userId ? ' (vous)' : ''}</span>
+            </div>
+            <div class="text-xs text-center text-slate-300 my-0.5">vs</div>
+            <div class="trn-player-row ${semi.player2_id === _userId ? 'trn-player-you' : ''}">
+              ${semi.winner_id === semi.player2_id ? '🏆 ' : ''}<span>${p2}${semi.player2_id === _userId ? ' (vous)' : ''}</span>
+            </div>
+            ${semi.status === 'active' && (semi.player1_id === _userId || semi.player2_id === _userId)
+              ? `<div class="mt-2 text-xs font-bold text-indigo-600"><span class="trn-spinner"></span>Votre match est prêt !</div>`
+              : ''}
+          `;
+          bracketInner.appendChild(card);
+        }
+
+        // Séparateur
+        const sep = document.createElement('div');
+        sep.className = 'flex items-center gap-2';
+        sep.innerHTML = `<div class="flex-1 h-px bg-slate-200"></div><div class="text-xs text-slate-400">Finale</div><div class="flex-1 h-px bg-slate-200"></div>`;
+        bracketInner.appendChild(sep);
+
+        // Finale
+        if (final) {
+          const fp1 = final.player1_id ? await fetchPseudo(final.player1_id) : 'À déterminer';
+          const fp2 = final.player2_id ? await fetchPseudo(final.player2_id) : 'À déterminer';
+          const finalCard = document.createElement('div');
+          finalCard.className = `trn-bracket-match ${final.status === 'finished' ? 'trn-bracket-winner' : ''}`;
+          finalCard.innerHTML = `
+            <div class="text-xs font-bold text-slate-400 mb-1">🏆 Finale</div>
+            <div class="trn-player-row ${final.player1_id === _userId ? 'trn-player-you' : ''}">
+              ${final.winner_id === final.player1_id && final.player1_id ? '🥇 ' : ''}<span>${fp1}${final.player1_id === _userId ? ' (vous)' : ''}</span>
+            </div>
+            <div class="text-xs text-center text-slate-300 my-0.5">vs</div>
+            <div class="trn-player-row ${final.player2_id === _userId ? 'trn-player-you' : ''}">
+              ${final.winner_id === final.player2_id && final.player2_id ? '🥇 ' : ''}<span>${fp2}${final.player2_id === _userId ? ' (vous)' : ''}</span>
+            </div>
+            ${final.status === 'active' && (final.player1_id === _userId || final.player2_id === _userId)
+              ? `<div class="mt-2 text-xs font-bold text-indigo-600"><span class="trn-spinner"></span>Votre match est prêt !</div>`
+              : ''}
+          `;
+          bracketInner.appendChild(finalCard);
+        }
+
+        // Vérifie si l'utilisateur a un match actif → rediriger
+        await checkAndRedirectIfMyMatchActive();
+      }
+
+      // ── Vérifie match actif et redirige ──────────────────────────────
+      async function checkAndRedirectIfMyMatchActive() {
+        if (_redirecting || !_userId || !_matches.length) return;
+        const myMatch = _matches.find(m =>
+          m.status === 'active' &&
+          (m.player1_id === _userId || m.player2_id === _userId)
+        );
+        if (!myMatch) return;
+
+        _redirecting = true;
+        msgEl.innerHTML = `<span class="trn-spinner"></span>Préparation de votre match…`;
+
+        try {
+          await redirectForTournamentMatch(myMatch);
+        } catch (e) {
+          console.error('Erreur redirection tournoi', e);
+          _redirecting = false;
+          msgEl.textContent = 'Erreur lors du lancement du match. Réessaie.';
+        }
+      }
+
+      // ── Crée le jeu et redirige vers game.html ────────────────────────
+      // Suit la même logique que create_game.js (rpc_create_series_and_first_party)
+      async function redirectForTournamentMatch(tournamentMatch) {
+        const isPlayer1 = tournamentMatch.player1_id === _userId;
+        let matchId = tournamentMatch.match_id;
+        let gameId  = null;
+
+        if (!matchId) {
+          if (isPlayer1) {
+            // Player1 crée la série / partie / jeu via le même RPC que create_game.js
+            const opponentId = tournamentMatch.player2_id;
+            const { data: rpcRaw, error: rpcErr } = await supabase.rpc(
+              'rpc_create_series_and_first_party',
+              { p_opponent_id: opponentId, p_target_parties: 1, p_target_games: 1 }
+            );
+            if (rpcErr) throw new Error('rpc_create_series_and_first_party: ' + rpcErr.message);
+
+            // Extrait game_id et match_id (même logique que create_game.js)
+            let rpcData = rpcRaw;
+            if (Array.isArray(rpcData) && rpcData.length > 0) rpcData = rpcData[0];
+            if (typeof rpcData === 'string') { try { rpcData = JSON.parse(rpcData); } catch (_) {} }
+
+            gameId  = rpcData?.game_id  ?? rpcData?.gameId  ?? null;
+            matchId = rpcData?.match_id ?? rpcData?.matchId ?? null;
+
+            // Met à jour tournament_matches.match_id pour que player2 puisse l'utiliser
+            if (matchId) {
+              await supabase
+                .from('tournament_matches')
+                .update({ match_id: matchId })
+                .eq('id', tournamentMatch.id);
+            }
+
+          } else {
+            // Player2 : attend que player1 ait créé le match (poll 30s)
+            msgEl.innerHTML = `<span class="trn-spinner"></span>En attente du lancement du match…`;
+            const deadline = Date.now() + 30_000;
+            while (Date.now() < deadline) {
+              await new Promise(r => setTimeout(r, 2000));
+              const { data: updated } = await supabase
+                .from('tournament_matches')
+                .select('match_id')
+                .eq('id', tournamentMatch.id)
+                .maybeSingle();
+              if (updated?.match_id) { matchId = updated.match_id; break; }
+            }
+            if (!matchId) throw new Error('Timeout: match_id non reçu');
+
+            // Récupère game_id depuis la table games
+            const { data: games } = await supabase
+              .from('games')
+              .select('id')
+              .eq('match_id', matchId)
+              .limit(1);
+            gameId = games?.[0]?.id ?? null;
+          }
+        } else {
+          // match_id déjà connu → récupère game_id
+          const { data: games } = await supabase
+            .from('games')
+            .select('id')
+            .eq('match_id', matchId)
+            .limit(1);
+          gameId = games?.[0]?.id ?? null;
+        }
+
+        // Construit l'URL de redirection — même pattern que create_game.js
+        let url = 'game.html?';
+        const params = new URLSearchParams();
+        if (gameId)  params.set('game_id',              encodeURIComponent(gameId));
+        if (matchId) params.set('match_id',             encodeURIComponent(matchId));
+        params.set('tournament_match_id', encodeURIComponent(tournamentMatch.id));
+        window.location.href = url + params.toString();
+      }
+
+      // ── Inscription au tournoi ───────────────────────────────────────
+      registerBtn.addEventListener('click', async () => {
+        if (!_userId) { alert('Tu dois être connecté pour t'inscrire.'); return; }
+        registerBtn.disabled = true;
+        registerBtn.innerHTML = '<span class="trn-spinner"></span>Inscription…';
+
+        try {
+          const { data, error } = await supabase.rpc('rpc_register_tournament');
+          if (error) throw new Error(error.message);
+
+          msgEl.innerHTML = `<span class="trn-spinner"></span>${data?.message ?? 'Inscrit·e !'}`;
+          registerBtn.classList.add('hidden');
+
+          // Recharge l'état
+          await loadTournamentState();
+
+          // Abonne les realtime
+          subscribeRealtime();
+
+        } catch (e) {
+          console.error('rpc_register_tournament error', e);
+          msgEl.textContent = `Erreur : ${e.message}`;
+          msgEl.style.color = '#dc2626';
+          registerBtn.disabled = false;
+          registerBtn.innerHTML = 'S'inscrire au tournoi (20 TIKS)';
+        }
+      });
+
+      // ── Realtime Supabase ────────────────────────────────────────────
+      function subscribeRealtime() {
+        if (_realtimeChan || !_tournament) return;
+
+        _realtimeChan = supabase.channel(`tournament:${_tournament.id}`);
+
+        // Nouvelles inscriptions
+        _realtimeChan.on('postgres_changes', {
+          event: '*', schema: 'public', table: 'tournament_registrations',
+          filter: `tournament_id=eq.${_tournament.id}`
+        }, async () => {
+          await loadTournamentState();
+        });
+
+        // Mises à jour des matchs (bracket + déclenchement redirection)
+        _realtimeChan.on('postgres_changes', {
+          event: '*', schema: 'public', table: 'tournament_matches',
+          filter: `tournament_id=eq.${_tournament.id}`
+        }, async (payload) => {
+          // Met à jour _matches localement
+          const updated = payload?.new;
+          if (updated) {
+            const idx = _matches.findIndex(m => m.id === updated.id);
+            if (idx >= 0) _matches[idx] = updated;
+            else _matches.push(updated);
+          }
+          await loadTournamentState();
+        });
+
+        // Mise à jour du tournoi (status)
+        _realtimeChan.on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'tournaments',
+          filter: `id=eq.${_tournament.id}`
+        }, async (payload) => {
+          if (payload?.new) _tournament = payload.new;
+          await loadTournamentState();
+        });
+
+        _realtimeChan.subscribe((status) => {
+          if (status !== 'SUBSCRIBED') {
+            // Fallback polling si realtime échoue
+            startPollingFallback();
+          }
+        });
+      }
+
+      // ── Polling fallback si realtime indisponible ────────────────────
+      let _pollTimer = null;
+      function startPollingFallback() {
+        if (_pollTimer) return;
+        _pollTimer = setInterval(async () => {
+          try { await loadTournamentState(); } catch (_) {}
+        }, 5000);
+      }
+
+      // ── Nettoyage ────────────────────────────────────────────────────
+      window.addEventListener('pagehide', () => {
+        if (_realtimeChan) {
+          try { supabase.removeChannel(_realtimeChan); } catch (_) {}
+        }
+        if (_pollTimer) clearInterval(_pollTimer);
+      });
+
+      // ── Initialisation ───────────────────────────────────────────────
+      const user = await getCurrentUser();
+      _userId = user?.id ?? null;
+
+      if (!_userId) {
+        statusBadge.textContent = 'Non connecté';
+        msgEl.textContent = 'Connecte-toi pour participer au tournoi.';
+        slotsEl.innerHTML = '';
+        for (let i = 1; i <= 4; i++) {
+          const div = document.createElement('div');
+          div.className = 'trn-slot-empty rounded-lg p-2 text-center text-xs font-medium';
+          div.innerHTML = `<i class="fa-solid fa-user-slash mr-1 opacity-40"></i>Slot ${i}`;
+          slotsEl.appendChild(div);
+        }
+        return;
+      }
+
+      await loadTournamentState();
+
+      // Si déjà inscrit : abonne realtime et vérifie match actif immédiatement
+      const alreadyRegistered = _registrations.some(r => r.user_id === _userId);
+      if (alreadyRegistered || (_tournament && _tournament.status === 'active')) {
+        subscribeRealtime();
+        await checkAndRedirectIfMyMatchActive();
+      }
+
+      // Réagit aux changements de session (re-init si reconnexion)
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        _userId = session?.user?.id ?? null;
+        await loadTournamentState();
+      });
+
+    })(); // fin initTournament
+
+  </script>
+
+  <script>
+    /*
+      Stub lazy-loader : expose un objet window.taktikGame minimal.
+    */
+    window.taktikGame = window.taktikGame || (function () {
+      let _loading = null;
+
+      async function _ensureLoaded() {
+        if (_loading) return _loading;
+        _loading = (async () => {
+          try {
+            const mod = await import('./game.js');
+            if (mod && typeof mod.default === 'function') {
+              await mod.default(window.supabase ?? null);
+            }
+          } catch (err) {
+            console.warn('Échec du chargement du module game.js :', err);
+            throw err;
+          }
+        })();
+        return _loading;
+      }
+
+      return {
+        async joinGame(gameId) {
+          try {
+            await _ensureLoaded();
+            if (window.taktikGame && typeof window.taktikGame.joinGame === 'function' && window.taktikGame._isReal) {
+              return window.taktikGame.joinGame(gameId);
+            }
+          } catch (e) {
+            alert('Impossible de charger le jeu complet. Veuillez réessayer.');
+            console.error(e);
+          }
+        },
+        async createGame(...args) {
+          await _ensureLoaded();
+          if (window.taktikGame && typeof window.taktikGame.createGame === 'function' && window.taktikGame._isReal) {
+            return window.taktikGame.createGame(...args);
+          }
+        },
+        resetLocalGame() { console.warn('resetLocalGame stub — jeu complet non chargé.'); },
+        placeMove()      { console.warn('placeMove stub — jeu complet non chargé.'); },
+        _isReal: false
+      };
+    })();
+  </script>
+
+  <!-- Optional feature scripts -->
+  <script type="module">
+    try { await import('./statistics.js'); } catch(e){}
+    try { await import('./profiles.js'); } catch(e){}
+    try { await import('./tiks.js'); } catch(e){}
+    try { await import('./game.js'); } catch(e){}
+    try { await import('./transactions.js'); } catch(e){}
+    try { await import('./mingots.js'); } catch(e){}
+  </script>
+
+  <script type="module" src="./auth.js"></script>
+
+  <!-- Footer -->
+  <footer class="mt-8">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between text-sm text-slate-500">
+      <div>©Taktik - <span id="currentYear"></span></div>
+      <div>
+        <button id="loginFooterBtn" class="hidden px-3 py-2 rounded-md bg-sky-500 text-white text-sm" aria-label="Se connecter">Se connecter</button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (async function(){
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+    const btn = document.getElementById('loginFooterBtn');
+    function onLoginClick(ev){
+      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      if (typeof window.openAuthModal === 'function') {
+        try { window.openAuthModal(); return; } catch (err) { console.warn('openAuthModal() a échoué :', err); }
+      }
+      try { document.dispatchEvent(new CustomEvent('taktik:open-auth-modal')); } catch (err) {}
+    }
+    function showLogin(){
+      btn.classList.remove('hidden');
+      btn.removeEventListener('click', onLoginClick);
+      btn.addEventListener('click', onLoginClick);
+    }
+    function hideLogin(){ btn.classList.add('hidden'); btn.removeEventListener('click', onLoginClick); }
+
+    try {
+      const sup = (typeof window !== 'undefined' && window.supabase) ? window.supabase : (typeof supabase !== 'undefined' ? supabase : null);
+      if (!sup || !sup.auth || typeof sup.auth.getSession !== 'function') { showLogin(); return; }
+      const res = await sup.auth.getSession();
+      const session = res?.data?.session ?? null;
+      if (!session || !session.user) showLogin(); else hideLogin();
+      sup.auth.onAuthStateChange((event, sess) => { const u = sess?.user ?? null; if (u) hideLogin(); else showLogin(); });
+    } catch (err) { showLogin(); }
+  })();
+  </script>
+
+  <script type="module" src="online.js"></script>
+
+</body>
+</html>
